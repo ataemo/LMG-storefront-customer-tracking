@@ -3,215 +3,248 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>LMG - ຕິດຕາມລູກຄ້າ</title>
+<title>LMG Store</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 :root{
   --primary:#4c1d95;
   --primary-light:#7c3aed;
-  --primary-dark:#3b0f75;
-  --accent:#f59e0b;
-  --bg:#f4f3fb;
+  --primary-dark:#2e1065;
+  --accent:#d4a93e;
+  --accent-soft:#f7ecd3;
+  --bg:#f6f4fc;
   --card:#ffffff;
-  --text:#1f1b2e;
-  --muted:#6b6480;
-  --border:#e6e2f5;
+  --text:#1b1730;
+  --muted:#78708f;
+  --border:#ece6f8;
   --success:#16a34a;
   --danger:#dc2626;
-  --radius:16px;
-  --shadow:0 4px 20px rgba(76,29,149,.08);
+  --radius-lg:26px;
+  --radius-md:18px;
+  --radius-sm:12px;
+  --shadow:0 16px 40px -14px rgba(46,16,101,.22);
+  --shadow-sm:0 6px 18px -6px rgba(46,16,101,.14);
+  --font-body:'Plus Jakarta Sans','Noto Sans Lao',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
 body{
-  font-family:"Noto Sans Lao","Segoe UI",Roboto,-apple-system,sans-serif;
+  font-family:var(--font-body);
   background:var(--bg);
   color:var(--text);
   -webkit-font-smoothing:antialiased;
   overflow-x:hidden;
 }
-button{font-family:inherit;cursor:pointer;border:none;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;}
 input,select,textarea{font-family:inherit;}
 a{text-decoration:none;color:inherit;}
+::selection{background:var(--accent-soft);color:var(--primary-dark);}
 
 /* ---------- Loading ---------- */
 #loadingScreen{
-  position:fixed;inset:0;background:linear-gradient(160deg,var(--primary),var(--primary-dark));
-  display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;z-index:9999;
+  position:fixed;inset:0;z-index:9999;color:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(212,169,62,.35), transparent 60%),
+    radial-gradient(700px 500px at 110% 110%, rgba(124,58,237,.5), transparent 60%),
+    linear-gradient(160deg,var(--primary),var(--primary-dark));
 }
-#loadingScreen .logo{font-size:42px;font-weight:800;letter-spacing:2px;margin-bottom:8px;}
-.spinner{width:36px;height:36px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;margin-top:16px;}
+#loadingScreen .logo-mark{width:74px;height:74px;border-radius:22px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:26px;letter-spacing:1px;margin-bottom:18px;backdrop-filter:blur(6px);overflow:hidden;}
+#loadingScreen .logo-mark img{width:100%;height:100%;object-fit:cover;}
+#loadingScreen .ldtext{opacity:.85;font-size:13px;letter-spacing:.2px;}
+.spinner{width:34px;height:34px;border:3px solid rgba(255,255,255,.28);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-top:18px;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* ---------- Login ---------- */
 #loginScreen{
   position:fixed;inset:0;display:none;align-items:center;justify-content:center;
-  background:linear-gradient(160deg,var(--primary) 0%, var(--primary-light) 45%, #a78bfa 100%);
+  background:
+    radial-gradient(1000px 600px at -10% -10%, rgba(212,169,62,.35), transparent 55%),
+    radial-gradient(800px 700px at 115% 115%, rgba(124,58,237,.55), transparent 55%),
+    linear-gradient(155deg,var(--primary) 0%, var(--primary-dark) 100%);
   padding:20px;
 }
 .login-card{
-  background:var(--card);width:100%;max-width:380px;border-radius:24px;padding:36px 28px;
-  box-shadow:0 20px 60px rgba(0,0,0,.25);animation:pop .35s ease;
+  background:var(--card);width:100%;max-width:390px;border-radius:28px;padding:38px 30px;
+  box-shadow:0 30px 70px rgba(0,0,0,.35);animation:pop .35s ease;position:relative;overflow:hidden;
 }
+.login-card::before{content:'';position:absolute;top:-60px;right:-60px;width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,var(--accent-soft),transparent 70%);}
 @keyframes pop{from{opacity:0;transform:translateY(16px) scale(.97);}to{opacity:1;transform:none;}}
 .login-logo{
-  width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--primary),var(--primary-light));
-  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:26px;margin:0 auto 16px;
+  width:68px;height:68px;border-radius:20px;background:linear-gradient(135deg,var(--primary),var(--primary-light));
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:26px;margin:0 auto 18px;
+  box-shadow:0 12px 26px -8px rgba(76,29,149,.55);position:relative;z-index:1;overflow:hidden;
 }
-.login-title{text-align:center;font-size:20px;font-weight:800;color:var(--primary-dark);}
-.login-sub{text-align:center;color:var(--muted);font-size:13px;margin-top:4px;margin-bottom:24px;}
-.field{margin-bottom:14px;}
+.login-logo img{width:100%;height:100%;object-fit:cover;}
+.login-title{text-align:center;font-size:21px;font-weight:800;color:var(--primary-dark);position:relative;z-index:1;}
+.login-sub{text-align:center;color:var(--muted);font-size:13px;margin-top:5px;margin-bottom:26px;position:relative;z-index:1;}
+.field{margin-bottom:14px;position:relative;z-index:1;}
 .field label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px;}
 .field input,.field select,.field textarea{
-  width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:15px;
-  background:#faf9ff;transition:.15s;
+  width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:14px;font-size:15px;
+  background:#faf9ff;transition:.15s;color:var(--text);
 }
-.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--primary-light);background:#fff;}
-.btn{
-  width:100%;padding:13px;border-radius:12px;font-weight:700;font-size:15px;transition:.15s;
-}
-.btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;box-shadow:0 8px 20px rgba(76,29,149,.35);}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--primary-light);background:#fff;box-shadow:0 0 0 4px rgba(124,58,237,.1);}
+.btn{width:100%;padding:14px;border-radius:14px;font-weight:700;font-size:15px;transition:.15s;}
+.btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;box-shadow:0 10px 24px -6px rgba(76,29,149,.5);}
 .btn-primary:active{transform:scale(.98);}
+.btn-gold{background:linear-gradient(135deg,#e7c264,var(--accent));color:#3a2a06;box-shadow:0 10px 22px -8px rgba(212,169,62,.6);}
 .btn-outline{background:#fff;border:1.5px solid var(--border);color:var(--text);}
 .btn-danger{background:#fef2f2;color:var(--danger);}
-.btn-sm{padding:8px 14px;font-size:13px;border-radius:10px;}
-.error-msg{background:#fef2f2;color:var(--danger);padding:10px 12px;border-radius:10px;font-size:13px;margin-bottom:14px;display:none;}
+.btn-sm{padding:9px 15px;font-size:13px;border-radius:11px;width:auto;}
+.error-msg{background:#fef2f2;color:var(--danger);padding:11px 13px;border-radius:12px;font-size:13px;margin-bottom:14px;display:none;position:relative;z-index:1;}
 
 /* ---------- App Shell ---------- */
 #app{display:none;height:100%;min-height:100vh;}
 .topbar{
-  position:sticky;top:0;z-index:50;background:linear-gradient(135deg,var(--primary),var(--primary-light));
-  color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
-  box-shadow:0 4px 14px rgba(76,29,149,.25);
+  position:sticky;top:0;z-index:50;color:#fff;padding:14px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(120deg,var(--primary),var(--primary-light));
+  box-shadow:0 6px 20px -6px rgba(76,29,149,.4);
 }
-.topbar .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;}
-.topbar .brand .dot{width:9px;height:9px;background:var(--accent);border-radius:50%;}
-.iconbtn{
-  width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.15);color:#fff;
-  display:flex;align-items:center;justify-content:center;font-size:18px;
-}
+.topbar .brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:16.5px;min-width:0;}
+.topbar .brand-mark{width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;overflow:hidden;flex-shrink:0;}
+.topbar .brand-mark img{width:100%;height:100%;object-fit:cover;}
+.topbar .brand .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.iconbtn{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
 .iconbtn:active{background:rgba(255,255,255,.3);}
 
-.main-wrap{max-width:920px;margin:0 auto;padding:16px 16px 90px;}
+.main-wrap{max-width:960px;margin:0 auto;padding:16px 16px 90px;}
 
 /* ---------- Drawer ---------- */
-.overlay{position:fixed;inset:0;background:rgba(20,10,40,.45);z-index:80;opacity:0;pointer-events:none;transition:.2s;}
+.overlay{position:fixed;inset:0;background:rgba(20,10,40,.5);z-index:80;opacity:0;pointer-events:none;transition:.2s;backdrop-filter:blur(2px);}
 .overlay.show{opacity:1;pointer-events:auto;}
 .drawer{
   position:fixed;top:0;right:-320px;width:300px;max-width:85vw;height:100%;background:#fff;z-index:90;
-  transition:right .25s ease;box-shadow:-8px 0 30px rgba(0,0,0,.2);display:flex;flex-direction:column;
+  transition:right .25s ease;box-shadow:-10px 0 34px rgba(0,0,0,.22);display:flex;flex-direction:column;
 }
 .drawer.open{right:0;}
-.drawer-head{padding:22px 20px;background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;}
-.drawer-head .name{font-weight:800;font-size:16px;}
-.drawer-head .role{font-size:12px;opacity:.85;margin-top:2px;}
+.drawer-head{padding:24px 20px;color:#fff;background:linear-gradient(135deg,var(--primary),var(--primary-light));position:relative;overflow:hidden;}
+.drawer-head::after{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:rgba(212,169,62,.35);}
+.drawer-head .avatar{width:44px;height:44px;border-radius:13px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-weight:800;margin-bottom:10px;position:relative;z-index:1;}
+.drawer-head .name{font-weight:800;font-size:16px;position:relative;z-index:1;}
+.drawer-head .role{font-size:12px;opacity:.85;margin-top:2px;position:relative;z-index:1;}
 .drawer-nav{flex:1;overflow-y:auto;padding:10px;}
-.drawer-item{
-  display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;font-weight:600;font-size:14.5px;
-  color:var(--text);margin-bottom:4px;
-}
-.drawer-item .ic{width:22px;text-align:center;}
-.drawer-item.active,.drawer-item:active{background:#f0ebff;color:var(--primary);}
-.drawer-sep{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;padding:14px 14px 6px;letter-spacing:.5px;}
+.drawer-item{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:13px;font-weight:600;font-size:14.5px;color:var(--text);margin-bottom:3px;}
+.drawer-item .ic{width:22px;text-align:center;font-size:16px;}
+.drawer-item.active,.drawer-item:active{background:linear-gradient(90deg,#f2ecff,#faf7ff);color:var(--primary);}
+.drawer-sep{font-size:11.5px;color:var(--muted);font-weight:700;padding:16px 14px 6px;}
 .drawer-foot{padding:14px;border-top:1px solid var(--border);}
 
 /* ---------- Cards / Sections ---------- */
-.card{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:16px;}
+.card{background:var(--card);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-sm);margin-bottom:16px;border:1px solid var(--border);}
+.card.hero{border:none;color:#fff;background:linear-gradient(135deg,var(--primary) 0%,var(--primary-light) 60%, #8b5cf6 100%);box-shadow:var(--shadow);position:relative;overflow:hidden;}
+.card.hero::after{content:'';position:absolute;bottom:-60px;left:-40px;width:200px;height:200px;border-radius:50%;background:rgba(212,169,62,.25);}
 .section-title{font-size:17px;font-weight:800;margin-bottom:4px;}
+.section-title.gold-underline{display:inline-block;padding-bottom:6px;border-bottom:3px solid var(--accent);}
 .section-sub{font-size:12.5px;color:var(--muted);margin-bottom:16px;}
 
 .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px;}
-.stat-card{background:var(--card);border-radius:14px;padding:16px;box-shadow:var(--shadow);}
-.stat-card .val{font-size:22px;font-weight:800;color:var(--primary-dark);}
+.stat-card{background:var(--card);border-radius:var(--radius-sm);padding:16px;box-shadow:var(--shadow-sm);border:1px solid var(--border);}
+.stat-card .val{font-size:23px;font-weight:800;color:var(--primary-dark);}
 .stat-card .lbl{font-size:12px;color:var(--muted);margin-top:2px;}
-.stat-card.accent{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;}
+.stat-card.accent{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;border:none;}
 .stat-card.accent .val,.stat-card.accent .lbl{color:#fff;}
+.stat-card.gold{background:linear-gradient(135deg,#eecd85,var(--accent));border:none;}
+.stat-card.gold .val,.stat-card.gold .lbl{color:#3a2a06;}
 
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .form-grid .full{grid-column:1/-1;}
 @media(max-width:520px){.form-grid{grid-template-columns:1fr;}}
 
-.record-item{
-  display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px;border-radius:14px;
-  border:1px solid var(--border);margin-bottom:10px;background:#fff;
-}
+.record-item{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:10px;background:#fff;transition:.15s;}
+.record-item:hover{box-shadow:var(--shadow-sm);}
 .record-item .rname{font-weight:700;font-size:14.5px;}
-.record-item .rmeta{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.6;}
-.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:#ede9fe;color:var(--primary);margin-right:4px;}
-.badge.status{background:#fef3c7;color:#92400e;}
+.record-item .rmeta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.7;}
+.badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#ede9fe;color:var(--primary);margin-right:4px;}
+.badge.status{background:var(--accent-soft);color:#8a6a12;}
 .record-actions{display:flex;gap:6px;flex-shrink:0;}
-.iconbtn-sm{width:32px;height:32px;border-radius:8px;background:#f3f0fb;color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:14px;}
+.iconbtn-sm{width:32px;height:32px;border-radius:10px;background:#f3f0fb;color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:14px;}
 .iconbtn-sm.del{background:#fef2f2;color:var(--danger);}
 
 .searchbar{display:flex;gap:8px;margin-bottom:14px;}
 .searchbar input{flex:1;}
 
-.tabs{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px;}
-.tab-btn{padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;background:#fff;border:1.5px solid var(--border);white-space:nowrap;color:var(--muted);}
-.tab-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.chart-box{position:relative;height:230px;margin-bottom:4px;}
+.chart-box.sm{height:150px;}
 
-.chart-box{position:relative;height:230px;margin-bottom:8px;}
-
-.empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
+.empty-state{text-align:center;padding:44px 20px;color:var(--muted);}
 .empty-state .ic{font-size:40px;margin-bottom:10px;}
 
-.fab{
-  position:fixed;bottom:22px;right:20px;width:58px;height:58px;border-radius:50%;
-  background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;font-size:26px;
-  display:flex;align-items:center;justify-content:center;box-shadow:0 10px 26px rgba(76,29,149,.4);z-index:40;
-}
+.fab{position:fixed;bottom:22px;right:20px;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;box-shadow:0 14px 30px -8px rgba(76,29,149,.55);z-index:40;}
 .fab:active{transform:scale(.94);}
 
 /* ---------- Bottom Tab Bar (Mobile) ---------- */
 .bottom-nav{display:none;}
 @media(max-width:899px){
-  .bottom-nav{
-    position:fixed;bottom:0;left:0;right:0;height:64px;background:#fff;z-index:60;
-    display:flex;align-items:center;justify-content:space-around;
-    box-shadow:0 -4px 16px rgba(76,29,149,.14);
-    padding-bottom:env(safe-area-inset-bottom);
-  }
-  .bottom-nav-item{
-    display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted);
-    font-size:11px;font-weight:700;flex:1;padding:8px 0;
-  }
-  .bottom-nav-item .ic{font-size:21px;}
+  .bottom-nav{position:fixed;bottom:0;left:0;right:0;height:66px;background:#fff;z-index:60;display:flex;align-items:center;justify-content:space-around;box-shadow:0 -6px 20px rgba(76,29,149,.16);padding-bottom:env(safe-area-inset-bottom);border-top:1px solid var(--border);}
+  .bottom-nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:11px;font-weight:700;flex:1;padding:8px 0;}
+  .bottom-nav-item .ic{font-size:20px;}
   .bottom-nav-item.active{color:var(--primary);}
-  .main-wrap{padding-bottom:96px;}
-  .fab{bottom:82px;}
+  .main-wrap{padding-bottom:98px;}
+  .fab{bottom:84px;}
 }
 
 /* ---------- Report Table ---------- */
 .report-table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap;}
-.report-table th{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;padding:10px 12px;text-align:left;position:sticky;top:0;}
+.report-table th{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;padding:11px 12px;text-align:left;position:sticky;top:0;}
 .report-table td{padding:9px 12px;border-bottom:1px solid var(--border);}
 .report-table tr:nth-child(even) td{background:#faf9ff;}
-.report-table tr:hover td{background:#f0ebff;}
+.report-table tr:hover td{background:#f2ecff;}
 
-.modal-overlay{position:fixed;inset:0;background:rgba(20,10,40,.5);z-index:95;display:none;align-items:flex-end;justify-content:center;}
+.modal-overlay{position:fixed;inset:0;background:rgba(20,10,40,.5);z-index:95;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px);}
 .modal-overlay.show{display:flex;}
-.modal-box{
-  background:#fff;width:100%;max-width:560px;border-radius:22px 22px 0 0;max-height:92vh;overflow-y:auto;
-  padding:20px;animation:slideup .25s ease;
-}
-@media(min-width:640px){
-  .modal-overlay{align-items:center;}
-  .modal-box{border-radius:22px;max-height:88vh;}
-}
+.modal-box{background:#fff;width:100%;max-width:560px;border-radius:24px 24px 0 0;max-height:92vh;overflow-y:auto;padding:20px;animation:slideup .25s ease;}
+@media(min-width:640px){.modal-overlay{align-items:center;}.modal-box{border-radius:24px;max-height:88vh;}}
 @keyframes slideup{from{transform:translateY(30px);opacity:0;}to{transform:none;opacity:1;}}
 .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
 .modal-head h3{font-size:17px;font-weight:800;}
 
-.toast{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f1b2e;color:#fff;
-  padding:12px 20px;border-radius:12px;font-size:13.5px;z-index:200;opacity:0;pointer-events:none;transition:.25s;
-  box-shadow:0 8px 24px rgba(0,0,0,.3);
-}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--primary-dark);color:#fff;padding:12px 20px;border-radius:14px;font-size:13.5px;z-index:200;opacity:0;pointer-events:none;transition:.25s;box-shadow:0 10px 26px rgba(0,0,0,.32);}
 .toast.show{opacity:1;transform:translate(-50%,-6px);}
 
 .pill-row{display:flex;flex-wrap:wrap;gap:8px;}
-.pill{padding:8px 14px;border-radius:20px;font-size:13px;background:#f0ebff;color:var(--primary-dark);display:flex;align-items:center;gap:6px;}
+.pill{padding:8px 14px;border-radius:20px;font-size:13px;background:#f2ecff;color:var(--primary-dark);display:flex;align-items:center;gap:6px;}
 .pill .x{cursor:pointer;font-weight:700;color:var(--danger);}
+
+/* ---------- Progress bar list (dashboard) ---------- */
+.pb-row{margin-bottom:13px;}
+.pb-row:last-child{margin-bottom:0;}
+.pb-top{display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;margin-bottom:6px;}
+.pb-top .n{color:var(--muted);font-weight:700;}
+.pb-track{height:9px;border-radius:20px;background:#f0ecfa;overflow:hidden;}
+.pb-fill{height:100%;border-radius:20px;transition:width .5s ease;}
+
+/* ---------- Mini dashboard widgets ---------- */
+.mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+@media(max-width:760px){.mini-grid{grid-template-columns:1fr;}}
+.mini-card{background:var(--card);border-radius:var(--radius-sm);padding:16px;box-shadow:var(--shadow-sm);border:1px solid var(--border);}
+.mini-card .mini-title{font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:10px;}
+.donut-wrap{position:relative;height:120px;}
+.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.donut-center .pct{font-size:21px;font-weight:800;color:var(--primary-dark);}
+.donut-center .sub{font-size:10.5px;color:var(--muted);}
+
+/* ---------- Branding / Appearance settings ---------- */
+.swatch-row{display:flex;gap:10px;flex-wrap:wrap;}
+.swatch-field{flex:1;min-width:130px;}
+.swatch-field label{font-size:12.5px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px;}
+.swatch-input{display:flex;align-items:center;gap:8px;border:1.5px solid var(--border);border-radius:13px;padding:6px 10px;background:#faf9ff;}
+.swatch-input input[type=color]{width:34px;height:34px;border:none;border-radius:9px;padding:0;background:none;}
+.swatch-input input[type=text]{border:none;background:none;flex:1;padding:6px 2px;font-size:13px;}
+.icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;}
+.icon-field label{font-size:11.5px;color:var(--muted);display:block;margin-bottom:5px;}
+.icon-field input{width:100%;text-align:center;font-size:18px;padding:9px 6px;border:1.5px solid var(--border);border-radius:11px;background:#faf9ff;}
+.logo-upload{display:flex;align-items:center;gap:14px;}
+.logo-preview{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--primary),var(--primary-light));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;overflow:hidden;flex-shrink:0;}
+.logo-preview img{width:100%;height:100%;object-fit:cover;}
+.preview-topbar{border-radius:16px;overflow:hidden;box-shadow:var(--shadow-sm);margin-top:14px;}
+.font-choice-row{display:flex;gap:10px;flex-wrap:wrap;}
+.font-choice{flex:1;min-width:140px;border:1.5px solid var(--border);border-radius:13px;padding:12px;text-align:center;font-size:15px;font-weight:700;background:#faf9ff;}
+.font-choice.active{border-color:var(--primary-light);background:#f2ecff;color:var(--primary-dark);}
 
 /* Desktop enhancements */
 @media(min-width:900px){
@@ -225,17 +258,17 @@ a{text-decoration:none;color:inherit;}
 
 <!-- LOADING -->
 <div id="loadingScreen">
-  <div class="logo">LMG</div>
-  <div style="opacity:.85;font-size:13px;">ກຳລັງໂຫລດລະບົບ...</div>
+  <div class="logo-mark" id="ldLogo">LMG</div>
+  <div class="ldtext">ກຳລັງໂຫລດລະບົບ...</div>
   <div class="spinner"></div>
 </div>
 
 <!-- LOGIN -->
 <div id="loginScreen">
   <div class="login-card">
-    <div class="login-logo">LMG</div>
-    <div class="login-title">ຕິດຕາມລູກຄ້າ LMG</div>
-    <div class="login-sub">ລະບົບຮັບລູກຄ້າ ແລະ ລາຍງານພະນັກງານ</div>
+    <div class="login-logo" id="loginLogo">LMG</div>
+    <div class="login-title js-store-name">LMG Store</div>
+    <div class="login-sub js-store-tagline">ລະບົບຮັບລູກຄ້າ ແລະ ລາຍງານພະນັກງານ</div>
     <div class="error-msg" id="loginError"></div>
     <div class="field">
       <label>ຊື່ຜູ້ໃຊ້ (Username)</label>
@@ -246,27 +279,28 @@ a{text-decoration:none;color:inherit;}
       <input type="password" id="loginPassword" placeholder="ປ້ອນລະຫັດຜ່ານ" autocomplete="current-password">
     </div>
     <button class="btn btn-primary" id="btnLogin">ເຂົ້າສູ່ລະບົບ</button>
-    <div style="text-align:center;font-size:11.5px;color:var(--muted);margin-top:16px;">
-    </div>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app">
   <div class="topbar">
-    <div class="brand"><span class="dot"></span> LMG Store</div>
-    <button class="iconbtn" id="btnMenu">☰</button>
+    <div class="brand">
+      <span class="brand-mark" id="topbarLogo">LMG</span>
+      <span class="name js-store-name">LMG Store</span>
+    </div>
+    <button class="iconbtn" id="btnMenu" data-icon="menu">☰</button>
   </div>
 
   <div class="main-wrap" id="mainWrap"></div>
 
-  <button class="fab" id="btnFab">＋</button>
+  <button class="fab" id="btnFab" data-icon="fab">＋</button>
 
   <!-- Bottom Tab Bar (ສະເພາະໂໝດມືຖື) -->
   <div class="bottom-nav" id="bottomNav">
-    <div class="bottom-nav-item" data-view="home"><span class="ic">🏠</span>ໜ້າຫຼັກ</div>
-    <div class="bottom-nav-item" data-view="dashboard"><span class="ic">📊</span>ແດັດບອດ</div>
-    <div class="bottom-nav-item" data-view="report"><span class="ic">🧾</span>ລາຍງານ</div>
+    <div class="bottom-nav-item" data-view="home"><span class="ic" data-icon="home">🏠</span>ໜ້າຫຼັກ</div>
+    <div class="bottom-nav-item" data-view="dashboard"><span class="ic" data-icon="dashboard">📊</span>ແດັດບອດ</div>
+    <div class="bottom-nav-item" data-view="report"><span class="ic" data-icon="report">🧾</span>ລາຍງານ</div>
   </div>
 </div>
 
@@ -274,21 +308,23 @@ a{text-decoration:none;color:inherit;}
 <div class="overlay" id="overlay"></div>
 <div class="drawer" id="drawer">
   <div class="drawer-head">
+    <div class="avatar" id="drawerAvatar">-</div>
     <div class="name" id="drawerName">-</div>
     <div class="role" id="drawerRole">-</div>
   </div>
   <div class="drawer-nav">
-    <div class="drawer-item" data-view="home"><span class="ic">🏠</span> ໜ້າຫຼັກ / ບັນທຶກລູກຄ້າ</div>
-    <div class="drawer-item" data-view="records"><span class="ic">📋</span> ລາຍການລູກຄ້າທັງໝົດ</div>
-    <div class="drawer-item" data-view="dashboard"><span class="ic">📊</span> ແດັດບອດ (ກຣາຟ)</div>
-    <div class="drawer-item" data-view="report"><span class="ic">🧾</span> ລາຍງານ (ຕາຕະລາງ)</div>
+    <div class="drawer-item" data-view="home"><span class="ic" data-icon="home">🏠</span> ໜ້າຫຼັກ / ບັນທຶກລູກຄ້າ</div>
+    <div class="drawer-item" data-view="records"><span class="ic" data-icon="records">📋</span> ລາຍການລູກຄ້າທັງໝົດ</div>
+    <div class="drawer-item" data-view="dashboard"><span class="ic" data-icon="dashboard">📊</span> ແດັດບອດ (ກຣາຟ)</div>
+    <div class="drawer-item" data-view="report"><span class="ic" data-icon="report">🧾</span> ລາຍງານ (ຕາຕະລາງ)</div>
     <div class="drawer-sep" id="adminSep" style="display:none;">ຫລັງບ້ານ (Admin)</div>
-    <div class="drawer-item" data-view="users" id="navUsers" style="display:none;"><span class="ic">👥</span> ຈັດການພະນັກງານ</div>
-    <div class="drawer-item" data-view="settings" id="navSettings" style="display:none;"><span class="ic">⚙️</span> ຕັ້ງຄ່າຕົວເລືອກ</div>
-    <div class="drawer-item" data-view="profile"><span class="ic">🔑</span> ປ່ຽນລະຫັດຜ່ານ</div>
+    <div class="drawer-item" data-view="users" id="navUsers" style="display:none;"><span class="ic" data-icon="users">👥</span> ຈັດການພະນັກງານ</div>
+    <div class="drawer-item" data-view="settings" id="navSettings" style="display:none;"><span class="ic" data-icon="settings">⚙️</span> ຕັ້ງຄ່າຕົວເລືອກ</div>
+    <div class="drawer-item" data-view="branding" id="navBranding" style="display:none;"><span class="ic" data-icon="branding">🎨</span> ຕົກແຕ່ງແອັບ</div>
+    <div class="drawer-item" data-view="profile"><span class="ic" data-icon="profile">🔑</span> ປ່ຽນລະຫັດຜ່ານ</div>
   </div>
   <div class="drawer-foot">
-    <button class="btn btn-danger" id="btnLogout">ອອກຈາກລະບົບ</button>
+    <button class="btn btn-danger" id="btnLogout"><span data-icon="logout">🚪</span> ອອກຈາກລະບົບ</button>
   </div>
 </div>
 
@@ -321,7 +357,6 @@ function apiCall_(action, args){
 }
 
 // ຈຳລອງໜ້າຕາຂອງ google.script.run ໃຫ້ໂຄ້ດເດີມທັງໝົດ (withSuccessHandler/withFailureHandler().fn(...))
-// ໃຊ້ໄດ້ຄືເກົ່າ ໂດຍປ່ຽນແຕ່ transport ຢູ່ພາຍໃນເປັນ fetch() ໄປຫາ Code.gs
 const google = {
   script: {
     run: (function(){
@@ -330,7 +365,6 @@ const google = {
           get(_target, prop){
             if(prop === 'withSuccessHandler') return (cb)=> makeRunner(cb, failureCb);
             if(prop === 'withFailureHandler') return (cb)=> makeRunner(successCb, cb);
-            // ຊື່ຟັງຊັນທີ່ຢູ່ໃນ ROUTES ຝັ່ງ Code.gs ເຊັ່ນ login, addRecord, bootstrap, ...
             const actionName = prop;
             return (...args) => {
               apiCall_(actionName, args).then(res => {
@@ -349,36 +383,78 @@ const google = {
   }
 };
 
+/*** ================= BRANDING (ຮູບແບບ / ສີ / ໂລໂກ້ / ໄອຄອນ) ================= ***/
+const BRAND_DEFAULTS = {
+  storeName: 'LMG Store', storeTagline: 'ລະບົບຮັບລູກຄ້າ ແລະ ລາຍງານພະນັກງານ',
+  logoUrl: '', logoText: 'LMG', fontChoice: 'jakarta',
+  colorPrimary:'#4c1d95', colorPrimaryLight:'#7c3aed', colorPrimaryDark:'#2e1065',
+  colorAccent:'#d4a93e', colorBg:'#f6f4fc',
+  icon_menu:'☰', icon_home:'🏠', icon_records:'📋', icon_dashboard:'📊', icon_report:'🧾',
+  icon_users:'👥', icon_settings:'⚙️', icon_branding:'🎨', icon_profile:'🔑', icon_logout:'🚪',
+  icon_fab:'＋', icon_save:'💾', icon_edit:'✏️', icon_delete:'🗑️', icon_search:'🔍',
+  icon_export:'⬇️', icon_add:'➕', icon_ok:'✅', icon_err:'❌', icon_warn:'⚠️', icon_close:'✕'
+};
+const ICON_LABELS = {
+  menu:'ເມນູ', home:'ໜ້າຫຼັກ', records:'ລາຍການ', dashboard:'ແດັດບອດ', report:'ລາຍງານ',
+  users:'ພະນັກງານ', settings:'ຕັ້ງຄ່າ', branding:'ຕົກແຕ່ງ', profile:'ລະຫັດຜ່ານ', logout:'ອອກລະບົບ',
+  fab:'ປຸ່ມ +', save:'ບັນທຶກ', edit:'ແກ້ໄຂ', delete:'ລຶບ', search:'ຄົ້ນຫາ',
+  export:'ດາວໂຫລດ', add:'ເພີ່ມ', ok:'ສຳເລັດ', err:'ຜິດພາດ', warn:'ເຕືອນ', close:'ປິດ'
+};
+const FONT_MAP = { jakarta: "'Plus Jakarta Sans','Noto Sans Lao',sans-serif", prompt: "'Prompt','Noto Sans Lao',sans-serif", poppins: "'Poppins','Noto Sans Lao',sans-serif" };
+let BRAND = Object.assign({}, BRAND_DEFAULTS);
+
+function ic(key){ return BRAND['icon_'+key] || ''; }
+
+function applyBranding(b){
+  BRAND = Object.assign({}, BRAND_DEFAULTS, b||{});
+  const root = document.documentElement.style;
+  root.setProperty('--primary', BRAND.colorPrimary);
+  root.setProperty('--primary-light', BRAND.colorPrimaryLight);
+  root.setProperty('--primary-dark', BRAND.colorPrimaryDark);
+  root.setProperty('--accent', BRAND.colorAccent);
+  root.setProperty('--bg', BRAND.colorBg);
+  root.setProperty('--font-body', FONT_MAP[BRAND.fontChoice] || FONT_MAP.jakarta);
+  document.title = BRAND.storeName;
+  $all('.js-store-name').forEach(el=> el.textContent = BRAND.storeName);
+  $all('.js-store-tagline').forEach(el=> el.textContent = BRAND.storeTagline);
+  const logoHtml = BRAND.logoUrl ? `<img src="${esc(BRAND.logoUrl)}" alt="logo">` : esc((BRAND.logoText||'LMG').slice(0,4));
+  ['ldLogo','loginLogo','topbarLogo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML = logoHtml; });
+  $all('[data-icon]').forEach(el=>{ el.textContent = ic(el.dataset.icon); });
+}
+
 /*** ================= STATE ================= ***/
 let CURRENT_USER = JSON.parse(sessionStorage.getItem('lmg_user') || 'null');
 let AUTH_TOKEN = sessionStorage.getItem('lmg_token') || null;
-let CONFIG = { category:[], channel:[], status:[], currency:[] };
+let CONFIG = { category:[], channel:[], status:[], currency:[], branding:{} };
 let RECORDS = [];
 let DASHBOARD = {};
 let currentView = 'home';
 let editingId = null;
 let recordFilterQuery = '';
 let reportFilterQuery = '';
+let brandingDraft = null;
 
 /*** ================= HELPERS ================= ***/
 function $(sel){return document.querySelector(sel);}
 function $all(sel){return document.querySelectorAll(sel);}
-function showToast(msg){
-  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 2400);
-}
+function showToast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2400); }
 function fmtNum(n){ return (Number(n)||0).toLocaleString('en-US'); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const CHART_COLORS = ['#7c3aed','#d4a93e','#16a34a','#dc2626','#0891b2','#db2777','#65a30d','#4c1d95','#ea580c','#0ea5e9'];
+function colorFor(i){ return CHART_COLORS[i % CHART_COLORS.length]; }
 
 /*** ================= INIT ================= ***/
 window.addEventListener('load', () => {
-  if (CURRENT_USER) {
-    bootApp();
-  } else {
-    $('#loadingScreen').style.display = 'none';
-    $('#loginScreen').style.display = 'flex';
-  }
+  google.script.run.withSuccessHandler(b=>{
+    applyBranding(b);
+    afterBrandLoaded();
+  }).withFailureHandler(()=>{ applyBranding({}); afterBrandLoaded(); }).getPublicBranding();
 });
+
+function afterBrandLoaded(){
+  if (CURRENT_USER) { bootApp(); }
+  else { $('#loadingScreen').style.display='none'; $('#loginScreen').style.display='flex'; }
+}
 
 $('#btnLogin').addEventListener('click', doLogin);
 $('#loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
@@ -413,14 +489,17 @@ function doLogin(){
 function bootApp(){
   google.script.run.withSuccessHandler(data=>{
     CONFIG = data.config; RECORDS = data.records; DASHBOARD = data.dashboard;
+    applyBranding(CONFIG.branding);
     $('#loadingScreen').style.display='none';
     $('#app').style.display='block';
     $('#drawerName').textContent = CURRENT_USER.fullName || CURRENT_USER.username;
+    $('#drawerAvatar').textContent = (CURRENT_USER.fullName||CURRENT_USER.username||'?').trim().charAt(0).toUpperCase();
     $('#drawerRole').textContent = CURRENT_USER.role==='admin' ? 'ຜູ້ດູແລລະບົບ (Admin)' : 'ພະນັກງານ';
     if(CURRENT_USER.role==='admin'){
       $('#adminSep').style.display='block';
       $('#navUsers').style.display='flex';
       $('#navSettings').style.display='flex';
+      $('#navBranding').style.display='flex';
     }
     renderView('home');
   }).withFailureHandler(err=>{
@@ -435,6 +514,7 @@ function bootApp(){
 function refreshAll(cb){
   google.script.run.withSuccessHandler(data=>{
     CONFIG = data.config; RECORDS = data.records; DASHBOARD = data.dashboard;
+    applyBranding(CONFIG.branding);
     if(cb) cb();
   }).bootstrap(CURRENT_USER.username, CURRENT_USER.role);
 }
@@ -443,12 +523,8 @@ function refreshAll(cb){
 $('#btnMenu').addEventListener('click', ()=>{ $('#drawer').classList.add('open'); $('#overlay').classList.add('show'); });
 $('#overlay').addEventListener('click', closeDrawer);
 function closeDrawer(){ $('#drawer').classList.remove('open'); $('#overlay').classList.remove('show'); }
-$all('.drawer-item').forEach(el=>{
-  el.addEventListener('click', ()=>{ renderView(el.dataset.view); closeDrawer(); });
-});
-$all('.bottom-nav-item').forEach(el=>{
-  el.addEventListener('click', ()=> renderView(el.dataset.view));
-});
+$all('.drawer-item').forEach(el=>{ el.addEventListener('click', ()=>{ renderView(el.dataset.view); closeDrawer(); }); });
+$all('.bottom-nav-item').forEach(el=>{ el.addEventListener('click', ()=> renderView(el.dataset.view)); });
 $('#btnLogout').addEventListener('click', ()=>{
   google.script.run.logout(AUTH_TOKEN);
   sessionStorage.removeItem('lmg_user');
@@ -469,7 +545,9 @@ function renderView(view){
   else if(view==='report') wrap.innerHTML = viewReport();
   else if(view==='users') wrap.innerHTML = viewUsers();
   else if(view==='settings') wrap.innerHTML = viewSettings();
+  else if(view==='branding') wrap.innerHTML = viewBranding();
   else if(view==='profile') wrap.innerHTML = viewProfile();
+  $all('[data-icon]').forEach(el=>{ el.textContent = ic(el.dataset.icon); });
   afterRender(view);
 }
 
@@ -481,17 +559,17 @@ function viewHome(){
   return `
   <div class="stat-grid">
     <div class="stat-card accent"><div class="val">${todayCount}</div><div class="lbl">ລູກຄ້າມື້ນີ້</div></div>
-    <div class="stat-card"><div class="val">${myTotal}</div><div class="lbl">${CURRENT_USER.role==='admin'?'ຍອດລວມທັງໝົດ':'ຍອດຂອງຂ້ອຍ'}</div></div>
+    <div class="stat-card gold"><div class="val">${myTotal}</div><div class="lbl">${CURRENT_USER.role==='admin'?'ຍອດລວມທັງໝົດ':'ຍອດຂອງຂ້ອຍ'}</div></div>
   </div>
   <div class="card">
-    <div class="section-title">📝 ບັນທຶກລູກຄ້າໃໝ່</div>
-    <div class="section-sub">ຟອມນີ້ໃຊ້ບັນທຶກລູກຄ້າທີ່ເຂົ້າ-ອອກໜ້າຮ້ານ ແບບໄວ</div>
+    <div class="section-title gold-underline">${ic('add')} ບັນທຶກລູກຄ້າໃໝ່</div>
+    <div class="section-sub" style="margin-top:10px;">ຟອມນີ້ໃຊ້ບັນທຶກລູກຄ້າທີ່ເຂົ້າ-ອອກໜ້າຮ້ານ ແບບໄວ</div>
     <div id="homeFormHolder">${recordFormHtml({})}</div>
-    <button class="btn btn-primary" style="margin-top:6px;" id="btnSaveHome">💾 ບັນທຶກລູກຄ້າ</button>
+    <button class="btn btn-primary" style="margin-top:6px;" id="btnSaveHome">${ic('save')} ບັນທຶກລູກຄ້າ</button>
   </div>
   <div class="card">
-    <div class="section-title">🕒 ບັນທຶກລ່າສຸດ</div>
-    <div id="recentList">${RECORDS.slice(0,5).map(recordItemHtml).join('') || emptyHtml('ຍັງບໍ່ມີຂໍ້ມູນ')}</div>
+    <div class="section-title" style="font-size:14.5px;">🕒 ບັນທຶກລ່າສຸດ</div>
+    <div id="recentList" style="margin-top:10px;">${RECORDS.slice(0,5).map(recordItemHtml).join('') || emptyHtml('ຍັງບໍ່ມີຂໍ້ມູນ')}</div>
   </div>`;
 }
 
@@ -522,38 +600,26 @@ function recordFormHtml(r){
 
 function collectFormPayload(){
   return {
-    date: $('#f_date').value,
-    staffName: $('#f_staffName').value,
-    customerName: $('#f_customerName').value,
-    phone: $('#f_phone').value,
-    invoice: $('#f_invoice').value,
-    followUp: $('#f_followUp').value,
-    channel: $('#f_channel').value,
-    category: $('#f_category').value,
-    product: $('#f_product').value,
-    qty: Number($('#f_qty').value)||0,
-    currency: $('#f_currency').value,
-    price: Number($('#f_price').value)||0,
-    status: $('#f_status').value,
-    salesStaff: $('#f_salesStaff').value,
-    action: $('#f_action').value,
-    note: $('#f_note').value
+    date: $('#f_date').value, staffName: $('#f_staffName').value, customerName: $('#f_customerName').value,
+    phone: $('#f_phone').value, invoice: $('#f_invoice').value, followUp: $('#f_followUp').value,
+    channel: $('#f_channel').value, category: $('#f_category').value, product: $('#f_product').value,
+    qty: Number($('#f_qty').value)||0, currency: $('#f_currency').value, price: Number($('#f_price').value)||0,
+    status: $('#f_status').value, salesStaff: $('#f_salesStaff').value, action: $('#f_action').value, note: $('#f_note').value
   };
 }
 
 function saveHomeForm(){
   const payload = collectFormPayload();
-  if(!payload.customerName){ showToast('⚠️ ກະລຸນາປ້ອນຊື່ລູກຄ້າ'); return; }
+  if(!payload.customerName){ showToast(ic('warn')+' ກະລຸນາປ້ອນຊື່ລູກຄ້າ'); return; }
   const btn = $('#btnSaveHome'); btn.textContent='ກຳລັງບັນທຶກ...'; btn.disabled=true;
   google.script.run.withSuccessHandler(res=>{
-    btn.textContent='💾 ບັນທຶກລູກຄ້າ'; btn.disabled=false;
+    btn.disabled=false;
     if(res.success){
-      showToast('✅ ບັນທຶກລູກຄ້າສຳເລັດ');
+      showToast(ic('ok')+' ບັນທຶກລູກຄ້າສຳເລັດ');
       refreshAll(()=> renderView('home'));
-    } else showToast('❌ '+(res.message||'ບໍ່ສຳເລັດ'));
+    } else { btn.innerHTML = ic('save')+' ບັນທຶກລູກຄ້າ'; showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
   }).withFailureHandler(err=>{
-    btn.textContent='💾 ບັນທຶກລູກຄ້າ'; btn.disabled=false;
-    showToast('❌ ຜິດພາດ: '+err.message);
+    btn.disabled=false; btn.innerHTML = ic('save')+' ບັນທຶກລູກຄ້າ'; showToast(ic('err')+' ຜິດພາດ: '+err.message);
   }).addRecord(payload, CURRENT_USER.username);
 }
 
@@ -565,7 +631,7 @@ function recordItemHtml(r){
     <div style="flex:1;min-width:0;">
       <div class="rname">${esc(r['ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ']||'(ບໍ່ມີຊື່)')} ${r['ເບີໂທຕິດຕໍ່']?('· '+esc(r['ເບີໂທຕິດຕໍ່'])):''}</div>
       <div class="rmeta">
-        <span class="badge">${esc(r['ສົນໃຈສິນຄ້າປະເພດໃด']||'-')}</span>
+        <span class="badge">${esc(r['ສົນໃຈສິນຄ້າປະເພດໃດ']||r['ສົນໃຈສິນຄ້າປະເພດໃດ']||'-')}</span>
         <span class="badge status">${esc(r['Status ຊື້ຄ້າ']||'-')}</span><br>
         🛍️ ${esc(r['ລູກຄ້າສົນໃຈຊື້ອັນໃດ']||'-')} · ${fmtNum(r['ລາຄາ'])} ${esc(r['ສະກຸນເງິນ']||'')}<br>
         📅 ${esc(String(r['ວັນທີ']||'').slice(0,10))} · 👤 ${esc(r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)']||'-')}
@@ -573,24 +639,20 @@ function recordItemHtml(r){
     </div>
     ${canEdit ? `
     <div class="record-actions">
-      <button class="iconbtn-sm" onclick="openRecordModal('${r['ID']}')">✏️</button>
-      ${CURRENT_USER.role==='admin' ? `<button class="iconbtn-sm del" onclick="confirmDelete('${r['ID']}')">🗑️</button>` : ''}
+      <button class="iconbtn-sm" onclick="openRecordModal('${r['ID']}')">${ic('edit')}</button>
+      ${CURRENT_USER.role==='admin' ? `<button class="iconbtn-sm del" onclick="confirmDelete('${r['ID']}')">${ic('delete')}</button>` : ''}
     </div>` : ''}
   </div>`;
 }
 
-function emptyHtml(msg){
-  return `<div class="empty-state"><div class="ic">🗂️</div><div>${esc(msg)}</div></div>`;
-}
+function emptyHtml(msg){ return `<div class="empty-state"><div class="ic">🗂️</div><div>${esc(msg)}</div></div>`; }
 
 function viewRecords(){
   return `
   <div class="card">
-    <div class="section-title">📋 ລາຍການລູກຄ້າ${CURRENT_USER.role==='admin'?'ທັງໝົດ':'ຂອງຂ້ອຍ'}</div>
+    <div class="section-title">${ic('records')} ລາຍການລູກຄ້າ${CURRENT_USER.role==='admin'?'ທັງໝົດ':'ຂອງຂ້ອຍ'}</div>
     <div class="section-sub">ທັງໝົດ ${RECORDS.length} ລາຍການ</div>
-    <div class="searchbar">
-      <input type="text" id="searchInput" placeholder="🔍 ຄົ້ນຫາຊື່ລູກຄ້າ, ເບີໂທ, ສິນຄ້າ..." value="${esc(recordFilterQuery)}">
-    </div>
+    <div class="searchbar"><input type="text" id="searchInput" placeholder="${ic('search')} ຄົ້ນຫາຊື່ລູກຄ້າ, ເບີໂທ, ສິນຄ້າ..." value="${esc(recordFilterQuery)}"></div>
     <div id="recordListArea">${renderRecordList()}</div>
   </div>`;
 }
@@ -615,30 +677,30 @@ function openRecordModal(id){
   const rec = id ? RECORDS.find(r=>r['ID']===id) : {};
   $('#modalBox').innerHTML = `
     <div class="modal-head">
-      <h3>${id ? '✏️ ແກ້ໄຂຂໍ້ມູນລູກຄ້າ' : '➕ ບັນທຶກລູກຄ້າໃໝ່'}</h3>
-      <button class="iconbtn-sm" onclick="closeModal()">✕</button>
+      <h3>${id ? ic('edit')+' ແກ້ໄຂຂໍ້ມູນລູກຄ້າ' : ic('add')+' ບັນທຶກລູກຄ້າໃໝ່'}</h3>
+      <button class="iconbtn-sm" onclick="closeModal()">${ic('close')}</button>
     </div>
     ${recordFormHtml(rec||{})}
-    <button class="btn btn-primary" style="margin-top:10px;" id="btnSaveModal">💾 ບັນທຶກ</button>
+    <button class="btn btn-primary" style="margin-top:10px;" id="btnSaveModal">${ic('save')} ບັນທຶກ</button>
   `;
   $('#modalOverlay').classList.add('show');
   $('#btnSaveModal').addEventListener('click', ()=>{
     const payload = collectFormPayload();
-    if(!payload.customerName){ showToast('⚠️ ກະລຸນາປ້ອນຊື່ລູກຄ້າ'); return; }
+    if(!payload.customerName){ showToast(ic('warn')+' ກະລຸນາປ້ອນຊື່ລູກຄ້າ'); return; }
     const btn = $('#btnSaveModal'); btn.textContent='ກຳລັງບັນທຶກ...'; btn.disabled=true;
     if(editingId){
       google.script.run.withSuccessHandler(res=>{
         btn.disabled=false;
-        if(res.success){ showToast('✅ ແກ້ໄຂສຳເລັດ'); closeModal(); refreshAll(()=>renderView(currentView)); }
-        else { btn.textContent='💾 ບັນທຶກ'; showToast('❌ '+(res.message||'ບໍ່ສຳເລັດ')); }
-      }).withFailureHandler(err=>{ btn.disabled=false; btn.textContent='💾 ບັນທຶກ'; showToast('❌ '+err.message); })
+        if(res.success){ showToast(ic('ok')+' ແກ້ໄຂສຳເລັດ'); closeModal(); refreshAll(()=>renderView(currentView)); }
+        else { btn.innerHTML=ic('save')+' ບັນທຶກ'; showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
+      }).withFailureHandler(err=>{ btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກ'; showToast(ic('err')+' '+err.message); })
       .updateRecord(editingId, payload, CURRENT_USER.username, CURRENT_USER.role);
     } else {
       google.script.run.withSuccessHandler(res=>{
         btn.disabled=false;
-        if(res.success){ showToast('✅ ບັນທຶກສຳເລັດ'); closeModal(); refreshAll(()=>renderView(currentView)); }
-        else { btn.textContent='💾 ບັນທຶກ'; showToast('❌ '+(res.message||'ບໍ່ສຳເລັດ')); }
-      }).withFailureHandler(err=>{ btn.disabled=false; btn.textContent='💾 ບັນທຶກ'; showToast('❌ '+err.message); })
+        if(res.success){ showToast(ic('ok')+' ບັນທຶກສຳເລັດ'); closeModal(); refreshAll(()=>renderView(currentView)); }
+        else { btn.innerHTML=ic('save')+' ບັນທຶກ'; showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
+      }).withFailureHandler(err=>{ btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກ'; showToast(ic('err')+' '+err.message); })
       .addRecord(payload, CURRENT_USER.username);
     }
   });
@@ -648,7 +710,7 @@ $('#modalOverlay').addEventListener('click', e=>{ if(e.target.id==='modalOverlay
 
 function confirmDelete(id){
   $('#modalBox').innerHTML = `
-    <div class="modal-head"><h3>🗑️ ລຶບຂໍ້ມູນ</h3><button class="iconbtn-sm" onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3>${ic('delete')} ລຶບຂໍ້ມູນ</h3><button class="iconbtn-sm" onclick="closeModal()">${ic('close')}</button></div>
     <p style="margin-bottom:18px;color:var(--muted);">ຢືນຢັນການລຶບຂໍ້ມູນລູກຄ້ານີ້? ບໍ່ສາມາດກູ້ຄືນໄດ້.</p>
     <div style="display:flex;gap:10px;">
       <button class="btn btn-outline" style="flex:1;" onclick="closeModal()">ຍົກເລີກ</button>
@@ -658,86 +720,145 @@ function confirmDelete(id){
   $('#btnConfirmDel').addEventListener('click', ()=>{
     google.script.run.withSuccessHandler(res=>{
       if(res.success){ showToast('🗑️ ລຶບແລ້ວ'); closeModal(); refreshAll(()=>renderView(currentView)); }
-      else showToast('❌ '+(res.message||'ບໍ່ສຳເລັດ'));
-    }).withFailureHandler(err=>showToast('❌ '+err.message)).deleteRecord(id, CURRENT_USER.role);
+      else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
+    }).withFailureHandler(err=>showToast(ic('err')+' '+err.message)).deleteRecord(id, CURRENT_USER.role);
   });
 }
 
-/*** ================= DASHBOARD ================= ***/
+/*** ================= DASHBOARD (ອອກແບບໃໝ່) ================= ***/
+function pctOf(n, total){ return total>0 ? Math.round((n/total)*100) : 0; }
+
+function progressListHtml(dataObj, total){
+  const entries = Object.entries(dataObj||{}).sort((a,b)=>b[1]-a[1]);
+  if(!entries.length) return `<div class="section-sub" style="margin:0;">ຍັງບໍ່ມີຂໍ້ມູນ</div>`;
+  return entries.map(([label,count],i)=>{
+    const pct = pctOf(count,total);
+    return `<div class="pb-row">
+      <div class="pb-top"><span>${esc(label)}</span><span class="n">${count} · ${pct}%</span></div>
+      <div class="pb-track"><div class="pb-fill" style="width:${pct}%;background:${colorFor(i)};"></div></div>
+    </div>`;
+  }).join('');
+}
+
 function viewDashboard(){
-  const revStr = Object.entries(DASHBOARD.revenueByCurrency||{}).map(([c,v])=>`${fmtNum(v)} ${c}`).join(' + ') || '0';
+  const total = DASHBOARD.total||0;
+  const revStr = Object.entries(DASHBOARD.revenueByCurrency||{}).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
+  const closedPct = pctOf((DASHBOARD.byStatus&&DASHBOARD.byStatus['ຊື້ແລ້ວ'])||0, total);
+  const dateEntries = Object.entries(DASHBOARD.byDate||{}).sort((a,b)=>a[0]<b[0]?-1:1);
+  const maxDay = dateEntries.reduce((m,e)=> e[1]>m.v ? {d:e[0],v:e[1]} : m, {d:'-',v:0});
+
   return `
-  <div class="section-title" style="margin-bottom:14px;">📊 ລາຍງານ ${CURRENT_USER.role==='admin'?'(ຮ້ານທັງໝົດ)':'(ຂອງຂ້ອຍ)'}</div>
-  <div class="stat-grid">
-    <div class="stat-card accent"><div class="val">${DASHBOARD.total||0}</div><div class="lbl">ລູກຄ້າທັງໝົດ</div></div>
-    <div class="stat-card"><div class="val" style="font-size:16px;">${revStr}</div><div class="lbl">ມູນຄ່າລວມ</div></div>
-    <div class="stat-card"><div class="val">${(DASHBOARD.byStatus && DASHBOARD.byStatus['ຊື້ແລ້ວ'])||0}</div><div class="lbl">ຊື້ແລ້ວ</div></div>
-    <div class="stat-card"><div class="val">${Object.keys(DASHBOARD.byStaff||{}).length}</div><div class="lbl">ພະນັກງານທີ່ຮັບລູກຄ້າ</div></div>
+  <div class="card hero">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;position:relative;z-index:1;">
+      <div>
+        <div style="font-size:12.5px;opacity:.85;">${CURRENT_USER.role==='admin'?'ພາບລວມຮ້ານທັງໝົດ':'ພາບລວມຂອງຂ້ອຍ'}</div>
+        <div style="font-size:30px;font-weight:800;margin-top:2px;">${total} <span style="font-size:14px;font-weight:600;opacity:.85;">ລູກຄ້າ</span></div>
+        <div style="font-size:13px;opacity:.9;margin-top:2px;">ມູນຄ່າລວມ: ${revStr}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;opacity:.8;">ວັນທີ່ຄຶກຄັກທີ່ສຸດ</div>
+        <div style="font-weight:800;font-size:15px;">${esc(maxDay.d)} · ${maxDay.v} ລູກຄ້າ</div>
+      </div>
+    </div>
+    <div class="chart-box" style="margin-top:14px;position:relative;z-index:1;"><canvas id="chartTrend"></canvas></div>
   </div>
 
-  <div class="card"><div class="section-title" style="font-size:14.5px;">ຊ່ອງທາງທີ່ລູກຄ້າຮູ້ຈັກ LMG</div><div class="chart-box"><canvas id="chartChannel"></canvas></div></div>
-  <div class="card"><div class="section-title" style="font-size:14.5px;">ສະຖານະລູກຄ້າ</div><div class="chart-box"><canvas id="chartStatus"></canvas></div></div>
-  <div class="card"><div class="section-title" style="font-size:14.5px;">ປະເພດສິນຄ້າທີ່ສົນໃຈ</div><div class="chart-box"><canvas id="chartCategory"></canvas></div></div>
-  ${CURRENT_USER.role==='admin' ? `<div class="card"><div class="section-title" style="font-size:14.5px;">ຈຳນວນລູກຄ້າຕໍ່ພະນັກງານ</div><div class="chart-box"><canvas id="chartStaff"></canvas></div></div>` : ''}
-  <div class="card"><div class="section-title" style="font-size:14.5px;">ແນວໂນ້ມລູກຄ້າຕໍ່ວັນ</div><div class="chart-box"><canvas id="chartDate"></canvas></div></div>
+  <div class="mini-grid">
+    <div class="mini-card">
+      <div class="mini-title">ອັດຕາການປິດການຂາຍ</div>
+      <div class="donut-wrap"><canvas id="chartClose"></canvas>
+        <div class="donut-center"><div class="pct">${closedPct}%</div><div class="sub">ຊື້ແລ້ວ</div></div>
+      </div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-title">ປະເພດສິນຄ້າຍອດນິຍົມ</div>
+      <div class="chart-box sm"><canvas id="chartCategory"></canvas></div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-title">ແນວໂນ້ມ 7 ວັນຫຼ້າສຸດ</div>
+      <div class="chart-box sm"><canvas id="chartWeek"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title" style="font-size:14.5px;">ຊ່ອງທາງທີ່ລູກຄ້າຮູ້ຈັກ LMG</div>
+    <div class="section-sub">ອີງຕາມຈຳນວນລູກຄ້າ ${total} ຄົນ</div>
+    ${progressListHtml(DASHBOARD.byChannel, total)}
+  </div>
+  <div class="card">
+    <div class="section-title" style="font-size:14.5px;">ສະຖານະລູກຄ້າ</div>
+    <div class="section-sub">ອີງຕາມຈຳນວນລູກຄ້າ ${total} ຄົນ</div>
+    ${progressListHtml(DASHBOARD.byStatus, total)}
+  </div>
+  ${CURRENT_USER.role==='admin' ? `<div class="card"><div class="section-title" style="font-size:14.5px;">ຈຳນວນລູກຄ້າຕໍ່ພະນັກງານ</div><div class="section-sub">ໃຜຮັບລູກຄ້າຫຼາຍທີ່ສຸດ</div>${progressListHtml(DASHBOARD.byStaff, total)}</div>` : ''}
   `;
 }
 
-const CHART_COLORS = ['#7c3aed','#f59e0b','#16a34a','#dc2626','#0891b2','#db2777','#65a30d','#4c1d95'];
 function drawCharts(){
-  const mk = (id, type, labels, data) => {
-    const el = document.getElementById(id); if(!el) return;
-    new Chart(el, {
-      type,
-      data:{ labels, datasets:[{ data, backgroundColor: CHART_COLORS, borderRadius:6, borderWidth:0 }] },
-      options:{
-        responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ display: type==='doughnut', position:'bottom', labels:{boxWidth:10,font:{size:11}} } },
-        scales: type==='bar' ? { y:{ beginAtZero:true, ticks:{precision:0} } } : {}
-      }
-    });
-  };
-  mk('chartChannel','doughnut', Object.keys(DASHBOARD.byChannel||{}), Object.values(DASHBOARD.byChannel||{}));
-  mk('chartStatus','doughnut', Object.keys(DASHBOARD.byStatus||{}), Object.values(DASHBOARD.byStatus||{}));
-  mk('chartCategory','bar', Object.keys(DASHBOARD.byCategory||{}), Object.values(DASHBOARD.byCategory||{}));
-  if(CURRENT_USER.role==='admin') mk('chartStaff','bar', Object.keys(DASHBOARD.byStaff||{}), Object.values(DASHBOARD.byStaff||{}));
   const dateEntries = Object.entries(DASHBOARD.byDate||{}).sort((a,b)=>a[0]<b[0]?-1:1);
-  mk('chartDate','bar', dateEntries.map(e=>e[0]), dateEntries.map(e=>e[1]));
+  const trendEl = document.getElementById('chartTrend');
+  if(trendEl){
+    const ctx = trendEl.getContext('2d');
+    const grad = ctx.createLinearGradient(0,0,0,trendEl.parentElement.clientHeight||220);
+    grad.addColorStop(0,'rgba(255,255,255,.55)');
+    grad.addColorStop(1,'rgba(255,255,255,0)');
+    new Chart(trendEl,{ type:'line',
+      data:{ labels: dateEntries.map(e=>e[0].slice(5)), datasets:[{ data: dateEntries.map(e=>e[1]), borderColor:'#ffffff', backgroundColor:grad, fill:true, tension:.4, pointRadius:3, pointBackgroundColor:'#ffffff', pointBorderColor:BRAND.colorAccent, pointBorderWidth:2, borderWidth:2.5 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ grid:{display:false}, ticks:{ color:'rgba(255,255,255,.85)', font:{size:10} } }, y:{ display:false, beginAtZero:true } } }
+    });
+  }
+  const closeEl = document.getElementById('chartClose');
+  if(closeEl){
+    const closed = (DASHBOARD.byStatus&&DASHBOARD.byStatus['ຊື້ແລ້ວ'])||0;
+    const rest = Math.max((DASHBOARD.total||0)-closed,0);
+    new Chart(closeEl,{ type:'doughnut', data:{ labels:['ຊື້ແລ້ວ','ອື່ນໆ'], datasets:[{ data:[closed,rest||1], backgroundColor:[BRAND.colorAccent,'#efeaf9'], borderWidth:0 }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'74%', plugins:{ legend:{display:false}, tooltip:{enabled:true} } } });
+  }
+  const catEl = document.getElementById('chartCategory');
+  if(catEl){
+    const entries = Object.entries(DASHBOARD.byCategory||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    new Chart(catEl,{ type:'bar', data:{ labels: entries.map(e=>e[0]), datasets:[{ data: entries.map(e=>e[1]), backgroundColor: entries.map((_,i)=>colorFor(i)), borderRadius:6 }] },
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ beginAtZero:true, ticks:{precision:0,font:{size:10}} }, y:{ ticks:{font:{size:10}} } } } });
+  }
+  const weekEl = document.getElementById('chartWeek');
+  if(weekEl){
+    const last7 = dateEntries.slice(-7);
+    new Chart(weekEl,{ type:'line', data:{ labels: last7.map(e=>e[0].slice(8)), datasets:[{ data: last7.map(e=>e[1]), borderColor:BRAND.colorPrimaryLight, backgroundColor:'rgba(124,58,237,.12)', fill:true, tension:.4, pointRadius:2, borderWidth:2 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ grid:{display:false}, ticks:{font:{size:9}} }, y:{ display:false, beginAtZero:true } } } });
+  }
 }
 
 /*** ================= REPORT (ຕາຕະລາງແບບ Excel) ================= ***/
 const REPORT_COLS = [
-  {key:'Timestamp', label:'Timestamp'},
-  {key:'ວັນທີ', label:'ວັນທີ'},
-  {key:'ຊື່ພະນັກງານຮັບລູກຄ້າ', label:'ຊື່ພະນັກງານຮັບລູກຄ້າ'},
-  {key:'Follow up', label:'Follow up'},
-  {key:'ເລກທີ Invoice', label:'ເລກທີ Invoice'},
-  {key:'ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ', label:'ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ'},
-  {key:'ເບີໂທຕິດຕໍ່', label:'ເບີໂທຕິດຕໍ່'},
-  {key:'ຮູ້ຈັກ LMG ທາງໃດ', label:'ຮູ້ຈັກ LMG ທາງໃດ'},
-  {key:'ສົນໃຈສິນຄ້າປະເພດໃດ', label:'ສົນໃຈສິນຄ້າປະເພດໃด'},
-  {key:'ລູກຄ້າສົນໃຈຊື້ອັນໃດ', label:'ລູກຄ້າສົນໃຈຊື້ອັນໃດ'},
-  {key:'ຈຳນວນ', label:'ຈຳນວນ'},
-  {key:'ລາຄາ', label:'ລາຄາ'},
-  {key:'ສະກຸນເງິນ', label:'ສະກຸນເງິນ'},
-  {key:'Status ຊື້ຄ້າ', label:'Status ຊື້ຄ້າ'},
-  {key:'Action ຕໍ່ໄປ', label:'Action ຕໍ່ໄປ'},
-  {key:'ໝາຍເຫດ', label:'ໝາຍເຫດ'},
-  {key:'ພະນັກງານຂາຍ', label:'ພະນັກງານຂາຍ'}
+  {key:'Timestamp', label:'Timestamp'}, {key:'ວັນທີ', label:'ວັນທີ'},
+  {key:'ຊື່ພະນັກງານຮັບລູກຄ້າ', label:'ຊື່ພະນັກງານຮັບລູກຄ້າ'}, {key:'Follow up', label:'Follow up'},
+  {key:'ເລກທີ Invoice', label:'ເລກທີ Invoice'}, {key:'ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ', label:'ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ'},
+  {key:'ເບີໂທຕິດຕໍ່', label:'ເບີໂທຕິດຕໍ່'}, {key:'ຮູ້ຈັກ LMG ທາງໃດ', label:'ຮູ້ຈັກ LMG ทาງใด'},
+  {key:'ສົນໃຈສິນຄ້າປะเพดใด', label:'ສົນໃຈສິນຄ້າປະເພດໃດ'}, {key:'ລູกถ้าສົນໃฉซื้ออันใด', label:'ລູກຄ້າສົນໃຈຊື້ອັນໃດ'},
+  {key:'ຈຳນວນ', label:'ຈຳນວນ'}, {key:'ລາຄາ', label:'ລາຄາ'}, {key:'ສະກຸນເງິນ', label:'ສະກຸນເງິນ'},
+  {key:'Status ຊື້ຄ້າ', label:'Status ຊື້ຄ້າ'}, {key:'Action ຕໍ່ໄປ', label:'Action ຕໍ່ໄປ'},
+  {key:'ໝາຍເຫດ', label:'ໝາຍເຫດ'}, {key:'ພະນັກງານຂາຍ', label:'ພะนักงานขาย'}
 ];
+// (ໝາຍເຫດ: ໃຊ້ key ຕົວແທ້ຈາກ DATA_HEADERS ຝັ່ງ backend ຢູ່ຂ້າງລຸ່ມ ເພື່ອປ້ອງກັນຄວາມຜິດພາດໃນການພິມ)
+REPORT_COLS[0].key='Timestamp'; REPORT_COLS[1].key='ວັນທີ'; REPORT_COLS[2].key='ຊື່ພະນັກງານຮັບລູກຄ້າ';
+REPORT_COLS[3].key='Follow up'; REPORT_COLS[4].key='ເລກທີ Invoice'; REPORT_COLS[5].key='ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ';
+REPORT_COLS[6].key='ເບີໂທຕິດຕໍ່'; REPORT_COLS[7].key='ຮູ້ຈັກ LMG ທາງໃດ'; REPORT_COLS[8].key='ສົນໃຈສິນຄ້າປະເພດໃດ';
+REPORT_COLS[9].key='ລູກຄ້າສົນໃຈຊື້ອັນໃດ'; REPORT_COLS[10].key='ຈຳນວນ'; REPORT_COLS[11].key='ລາຄາ';
+REPORT_COLS[12].key='ສະກຸນເງິນ'; REPORT_COLS[13].key='Status ຊື້ຄ້າ'; REPORT_COLS[13].key='Status ຊື້ຄ້າ';
+REPORT_COLS[14].key='Action ຕໍ່ໄປ'; REPORT_COLS[15].key='ໝາຍເຫດ'; REPORT_COLS[16].key='ພະນັກງານຂາຍ';
 
 function viewReport(){
   return `
   <div class="card" style="padding:14px;">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
       <div>
-        <div class="section-title" style="margin-bottom:2px;">🧾 ລາຍງານ (ຕາຕະລາງແບບ Excel)</div>
+        <div class="section-title" style="margin-bottom:2px;">${ic('report')} ລາຍງານ (ຕາຕະລາງແບບ Excel)</div>
         <div class="section-sub" style="margin-bottom:0;">ຄໍລໍາຄືກັນເປະໆກັບຕົ້ນສະບັບ LMG · ${CURRENT_USER.role==='admin'?'ຂໍ້ມູນທັງໝົດ':'ຂໍ້ມູນຂອງຂ້ອຍ'}</div>
       </div>
-      <button class="btn btn-outline btn-sm" onclick="exportCSV()">⬇️ Export CSV</button>
+      <button class="btn btn-outline btn-sm" onclick="exportCSV()">${ic('export')} Export CSV</button>
     </div>
-    <input type="text" id="reportSearch" placeholder="🔍 ຄົ້ນຫາໃນຕາຕະລາງ (ຊື່, ເບີໂທ, ສິນຄ້າ...)" value="${esc(reportFilterQuery)}"
-      style="margin-bottom:12px;width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;background:#faf9ff;">
+    <input type="text" id="reportSearch" placeholder="${ic('search')} ຄົ້ນຫາໃນຕາຕະລາງ (ຊື່, ເບີໂທ, ສິນຄ້າ...)" value="${esc(reportFilterQuery)}"
+      style="margin-bottom:12px;width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:14px;font-size:14px;background:#faf9ff;">
     <div id="reportTableArea">${renderReportTable()}</div>
   </div>`;
 }
@@ -745,16 +866,12 @@ function viewReport(){
 function renderReportTable(){
   const q = reportFilterQuery.toLowerCase().trim();
   let list = RECORDS;
-  if(q){
-    list = list.filter(r => REPORT_COLS.some(c => String(r[c.key]||'').toLowerCase().includes(q)));
-  }
+  if(q){ list = list.filter(r => REPORT_COLS.some(c => String(r[c.key]||'').toLowerCase().includes(q))); }
   const countLine = `<div class="section-sub" style="margin:0 0 10px;">ສະແດງ ${list.length} / ${RECORDS.length} ລາຍການ</div>`;
-  if(!list.length){
-    return countLine + emptyHtml('ບໍ່ພົບຂໍ້ມູນ');
-  }
+  if(!list.length) return countLine + emptyHtml('ບໍ່ພົບຂໍ້ມູນ');
   const thead = `<thead><tr>${REPORT_COLS.map(c=>`<th>${esc(c.label)}</th>`).join('')}</tr></thead>`;
   const tbody = `<tbody>${list.map(r=>`<tr>${REPORT_COLS.map(c=>`<td>${esc(formatReportCell(c.key, r[c.key]))}</td>`).join('')}</tr>`).join('')}</tbody>`;
-  return countLine + `<div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border);"><table class="report-table">${thead}${tbody}</table></div>`;
+  return countLine + `<div style="overflow-x:auto;border-radius:14px;border:1px solid var(--border);"><table class="report-table">${thead}${tbody}</table></div>`;
 }
 
 function formatReportCell(key, val){
@@ -773,7 +890,7 @@ function exportCSV(){
   a.href = url; a.download = 'lmg_ລາຍງານລູກຄ້າ_'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('⬇️ ດາວໂຫລດ CSV ສຳເລັດ');
+  showToast(ic('export')+' ດາວໂຫລດ CSV ສຳເລັດ');
 }
 
 /*** ================= ADMIN: USERS ================= ***/
@@ -783,8 +900,8 @@ function viewUsers(){
   return `
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;">
-      <div class="section-title">👥 ຈັດການພະນັກງານ</div>
-      <button class="btn btn-primary btn-sm" onclick="openUserModal(null)">➕ ເພີ່ມພະນັກງານ</button>
+      <div class="section-title">${ic('users')} ຈັດການພະນັກງານ</div>
+      <button class="btn btn-primary btn-sm" onclick="openUserModal(null)">${ic('add')} ເພີ່ມພະນັກງານ</button>
     </div>
     <div id="userListArea" style="margin-top:12px;">${emptyHtml('ກຳລັງໂຫລດ...')}</div>
   </div>`;
@@ -801,16 +918,16 @@ function loadUsers(){
           <div class="rmeta">Username: ${esc(u.username)} · ${u.active===false||u.active==='FALSE' ? '🔴 ປິດໃຊ້ງານ' : '🟢 ໃຊ້ງານຢູ່'}</div>
         </div>
         <div class="record-actions">
-          <button class="iconbtn-sm" onclick='openUserModal(${JSON.stringify(u)})'>✏️</button>
-          ${u.username!=='admin' ? `<button class="iconbtn-sm del" onclick="confirmDeleteUser('${u.username}')">🗑️</button>` : ''}
+          <button class="iconbtn-sm" onclick='openUserModal(${JSON.stringify(u)})'>${ic('edit')}</button>
+          ${u.username!=='admin' ? `<button class="iconbtn-sm del" onclick="confirmDeleteUser('${u.username}')">${ic('delete')}</button>` : ''}
         </div>
       </div>`).join('') || emptyHtml('ຍັງບໍ່ມີພະນັກງານ');
-  }).withFailureHandler(err=>showToast('❌ '+err.message)).getUsers(CURRENT_USER.role);
+  }).withFailureHandler(err=>showToast(ic('err')+' '+err.message)).getUsers(CURRENT_USER.role);
 }
 function openUserModal(u){
   const editing = !!u;
   $('#modalBox').innerHTML = `
-    <div class="modal-head"><h3>${editing?'✏️ ແກ້ໄຂພະນັກງານ':'➕ ເພີ່ມພະນັກງານໃໝ່'}</h3><button class="iconbtn-sm" onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3>${editing?ic('edit')+' ແກ້ໄຂພະນັກງານ':ic('add')+' ເພີ່ມພະນັກງານໃໝ່'}</h3><button class="iconbtn-sm" onclick="closeModal()">${ic('close')}</button></div>
     <div class="field"><label>Username</label><input type="text" id="u_username" value="${editing?esc(u.username):''}" ${editing?'disabled':''}></div>
     <div class="field"><label>ຊື່ເຕັມ</label><input type="text" id="u_fullName" value="${editing?esc(u.fullName):''}"></div>
     <div class="field"><label>ສິດ (Role)</label>
@@ -819,32 +936,28 @@ function openUserModal(u){
         <option value="admin" ${editing&&u.role==='admin'?'selected':''}>Admin</option>
       </select>
     </div>
-    ${editing?`<div class="field"><label>ສະຖານະ</label><select id="u_active"><option value="true" ${u.active!==false&&u.active!=='FALSE'?'selected':''}>ໃຊ້ງານ</option><option value="false" ${u.active===false||u.active==='FALSE'?'selected':''}>ປິດໃຊ້ງານ</option></select></div>`:''}
+    ${editing?`<div class="field"><label>ສະຖານະ</label><select id="u_active"><option value="true" ${u.active!==false&&u.active!=='FALSE'?'selected':''}>ໃຊ້ງານ</option><option value="false" ${u.active===false||u.active==='FALSE'?'selected':''}>ปิดໃຊ້ງານ</option></select></div>`:''}
     <div class="field"><label>${editing?'ລະຫັດຜ່ານໃໝ່ (ປ່ອຍວ່າງຖ້າບໍ່ປ່ຽນ)':'ລະຫັດຜ່ານ'}</label><input type="password" id="u_password"></div>
-    <button class="btn btn-primary" style="margin-top:6px;" id="btnSaveUser">💾 ບັນທຶກ</button>
+    <button class="btn btn-primary" style="margin-top:6px;" id="btnSaveUser">${ic('save')} บันทึก</button>
   `;
   $('#modalOverlay').classList.add('show');
   $('#btnSaveUser').addEventListener('click', ()=>{
     const payload = {
-      username: $('#u_username').value.trim(),
-      fullName: $('#u_fullName').value.trim(),
-      role: $('#u_role').value,
-      password: $('#u_password').value
+      username: $('#u_username').value.trim(), fullName: $('#u_fullName').value.trim(),
+      role: $('#u_role').value, password: $('#u_password').value
     };
     if(editing) payload.active = $('#u_active').value==='true';
-    if(!payload.username || !payload.fullName || (!editing && !payload.password)){
-      showToast('⚠️ ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ'); return;
-    }
+    if(!payload.username || !payload.fullName || (!editing && !payload.password)){ showToast(ic('warn')+' ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ'); return; }
     const fn = editing ? 'updateUser' : 'addUser';
     google.script.run.withSuccessHandler(res=>{
-      if(res.success){ showToast('✅ ບັນທຶກສຳເລັດ'); closeModal(); loadUsers(); }
-      else showToast('❌ '+(res.message||'ບໍ່ສຳເລັດ'));
-    }).withFailureHandler(err=>showToast('❌ '+err.message))[fn](payload, CURRENT_USER.role);
+      if(res.success){ showToast(ic('ok')+' ບັນທຶກສຳເລັດ'); closeModal(); loadUsers(); }
+      else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
+    }).withFailureHandler(err=>showToast(ic('err')+' '+err.message))[fn](payload, CURRENT_USER.role);
   });
 }
 function confirmDeleteUser(username){
   $('#modalBox').innerHTML = `
-    <div class="modal-head"><h3>🗑️ ລຶບພະນັກງານ</h3><button class="iconbtn-sm" onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3>${ic('delete')} ລຶບພະນັກງານ</h3><button class="iconbtn-sm" onclick="closeModal()">${ic('close')}</button></div>
     <p style="margin-bottom:18px;color:var(--muted);">ຢືນຢັນການລຶບບັນຊີ "${esc(username)}"?</p>
     <div style="display:flex;gap:10px;">
       <button class="btn btn-outline" style="flex:1;" onclick="closeModal()">ຍົກເລີກ</button>
@@ -854,8 +967,8 @@ function confirmDeleteUser(username){
   $('#btnConfirmDelUser').addEventListener('click', ()=>{
     google.script.run.withSuccessHandler(res=>{
       if(res.success){ showToast('🗑️ ລຶບແລ້ວ'); closeModal(); loadUsers(); }
-      else showToast('❌ '+(res.message||'ບໍ່ສຳເລັດ'));
-    }).withFailureHandler(err=>showToast('❌ '+err.message)).deleteUser(username, CURRENT_USER.role);
+      else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
+    }).withFailureHandler(err=>showToast(ic('err')+' '+err.message)).deleteUser(username, CURRENT_USER.role);
   });
 }
 
@@ -864,7 +977,7 @@ function viewSettings(){
   const grp = (label, key) => `
     <div class="card">
       <div class="section-title" style="font-size:14.5px;">${label}</div>
-      <div class="pill-row" id="pills_${key}">
+      <div class="pill-row" id="pills_${key}" style="margin-top:10px;">
         ${CONFIG[key].map((v,i)=>`<span class="pill">${esc(v)}<span class="x" onclick="removePill('${key}',${i})">✕</span></span>`).join('')}
       </div>
       <div style="display:flex;gap:8px;margin-top:12px;">
@@ -873,12 +986,12 @@ function viewSettings(){
       </div>
     </div>`;
   return `
-  <div class="section-title" style="margin-bottom:14px;">⚙️ ຕັ້ງຄ່າຕົວເລືອກໃນຟອມ</div>
-  ${grp('ຮູ້ຈັກ LMG ທາງໃด (ຊ່ອງທາງ)','channel')}
+  <div class="section-title" style="margin-bottom:14px;">${ic('settings')} ຕັ້ງຄ່າຕົວເລືອກໃນຟອມ</div>
+  ${grp('ຮູ້ຈັກ LMG ທາງໃດ (ຊ່ອງທາງ)','channel')}
   ${grp('ປະເພດສິນຄ້າ','category')}
   ${grp('Status ຊື້ຄ້າ','status')}
   ${grp('ສະກຸນເງິນ','currency')}
-  <button class="btn btn-primary" id="btnSaveConfig">💾 ບັນທຶກການຕັ້ງຄ່າ</button>
+  <button class="btn btn-primary" id="btnSaveConfig">${ic('save')} ບັນທຶກການຕັ້ງຄ່າ</button>
   `;
 }
 function addPill(key){
@@ -889,59 +1002,199 @@ function addPill(key){
   input.value='';
   renderView('settings');
 }
-function removePill(key, idx){
-  CONFIG[key].splice(idx,1);
-  renderView('settings');
+function removePill(key, idx){ CONFIG[key].splice(idx,1); renderView('settings'); }
+
+/*** ================= ADMIN: BRANDING (ตกแต่งแอป) ================= ***/
+function viewBranding(){
+  brandingDraft = Object.assign({}, BRAND_DEFAULTS, CONFIG.branding||{});
+  const b = brandingDraft;
+  const iconGroup = (title, keys) => `
+    <div class="mini-title" style="margin:14px 0 8px;">${title}</div>
+    <div class="icon-grid">
+      ${keys.map(k=>`<div class="icon-field"><label>${ICON_LABELS[k]}</label><input type="text" data-bkey="icon_${k}" value="${esc(b['icon_'+k])}" maxlength="4"></div>`).join('')}
+    </div>`;
+  return `
+  <div class="section-title" style="margin-bottom:4px;">${ic('branding')} ตกแต่งแอป</div>
+  <div class="section-sub">ປັບແຕ່ງຊື່ຮ້ານ ໂລໂກ້ ສີສັນ ຮູບແບບໂຕໜັງສື ແລະ ໄອຄອນທຸກໜ້າໄດ້ຕາມໃຈ</div>
+
+  <div class="card">
+    <div class="section-title" style="font-size:14.5px;">ຊື່ຮ້ານ ແລະ ໂລໂກ້</div>
+    <div class="field" style="margin-top:12px;"><label>ຊື່ຮ້ານ / ຊື່ແອັບ</label><input type="text" id="b_storeName" value="${esc(b.storeName)}"></div>
+    <div class="field"><label>ຄຳອະທິບາຍໃຕ້ຊື່ (ໜ້າ Login)</label><input type="text" id="b_storeTagline" value="${esc(b.storeTagline)}"></div>
+    <div class="field"><label>ຕົວອັກສອນຫຍໍ້ໂລໂກ້ (ໃຊ້ຕອນບໍ່ມີຮູບໂລໂກ້)</label><input type="text" id="b_logoText" value="${esc(b.logoText)}" maxlength="4"></div>
+    <div class="field">
+      <label>ຮູບໂລໂກ້ (URL ຫຼື ອັບໂຫລດ)</label>
+      <div class="logo-upload">
+        <div class="logo-preview" id="logoPreview">${b.logoUrl?`<img src="${esc(b.logoUrl)}">`:esc(b.logoText||'LMG')}</div>
+        <div style="flex:1;">
+          <input type="text" id="b_logoUrl" placeholder="https://..." value="${esc(b.logoUrl)}" style="margin-bottom:8px;width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:12px;background:#faf9ff;">
+          <input type="file" id="b_logoFile" accept="image/*">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title" style="font-size:14.5px;">ໂທນສີ</div>
+    <div class="swatch-row" style="margin-top:12px;">
+      <div class="swatch-field"><label>ສີຫຼັກ (Primary)</label><div class="swatch-input"><input type="color" data-bkey="colorPrimary" value="${b.colorPrimary}"><input type="text" data-bkey-text="colorPrimary" value="${b.colorPrimary}"></div></div>
+      <div class="swatch-field"><label>ສີຫຼັກ (ອ່ອນ)</label><div class="swatch-input"><input type="color" data-bkey="colorPrimaryLight" value="${b.colorPrimaryLight}"><input type="text" data-bkey-text="colorPrimaryLight" value="${b.colorPrimaryLight}"></div></div>
+      <div class="swatch-field"><label>ສີຫຼັກ (ເຂັ້ມ)</label><div class="swatch-input"><input type="color" data-bkey="colorPrimaryDark" value="${b.colorPrimaryDark}"><input type="text" data-bkey-text="colorPrimaryDark" value="${b.colorPrimaryDark}"></div></div>
+      <div class="swatch-field"><label>ສີຄຳ (Accent)</label><div class="swatch-input"><input type="color" data-bkey="colorAccent" value="${b.colorAccent}"><input type="text" data-bkey-text="colorAccent" value="${b.colorAccent}"></div></div>
+      <div class="swatch-field"><label>ສີພື້ນຫລັງ</label><div class="swatch-input"><input type="color" data-bkey="colorBg" value="${b.colorBg}"><input type="text" data-bkey-text="colorBg" value="${b.colorBg}"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title" style="font-size:14.5px;">ຮູບແບບໂຕໜັງສື (Font)</div>
+    <div class="font-choice-row" style="margin-top:12px;">
+      <div class="font-choice ${b.fontChoice==='jakarta'?'active':''}" data-font="jakarta" style="font-family:'Plus Jakarta Sans',sans-serif;">Aa Plus Jakarta</div>
+      <div class="font-choice ${b.fontChoice==='prompt'?'active':''}" data-font="prompt" style="font-family:'Prompt',sans-serif;">Aa Prompt</div>
+      <div class="font-choice ${b.fontChoice==='poppins'?'active':''}" data-font="poppins" style="font-family:'Poppins',sans-serif;">Aa Poppins</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title" style="font-size:14.5px;">ໄອຄອນທັງລະບົບ</div>
+    <div class="section-sub" style="margin-top:4px;">ໃສ່ emoji ຫຼື ຕົວອັກສອນສັ້ນໆ ກໍໄດ້ (ປັບແລ້ວມີຜົນທຸກໜ້າທັນທີ)</div>
+    ${iconGroup('ເມນູຫຼັກ', ['menu','home','records','dashboard','report','users','settings','branding','profile','logout','fab'])}
+    ${iconGroup('ປຸ່ມການກະທຳ', ['save','edit','delete','search','export','add','ok','err','warn','close'])}
+  </div>
+
+  <div class="card">
+    <div class="section-title" style="font-size:14.5px;">ຕົວຢ່າງ</div>
+    <div class="preview-topbar" id="brandPreview" style="margin-top:10px;"></div>
+  </div>
+
+  <div style="display:flex;gap:10px;">
+    <button class="btn btn-outline" id="btnResetBranding" style="flex:1;">ຄືນຄ່າເລີ່ມຕົ້ນ</button>
+    <button class="btn btn-gold" id="btnSaveBranding" style="flex:2;">${ic('save')} ບັນທຶກການຕົກແຕ່ງ</button>
+  </div>
+  `;
+}
+
+function renderBrandPreview(){
+  const b = brandingDraft;
+  const el = $('#brandPreview'); if(!el) return;
+  const logo = b.logoUrl ? `<img src="${esc(b.logoUrl)}" style="width:100%;height:100%;object-fit:cover;">` : esc((b.logoText||'LMG').slice(0,4));
+  el.innerHTML = `
+    <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(120deg,${b.colorPrimary},${b.colorPrimaryLight});color:#fff;font-family:${FONT_MAP[b.fontChoice]};">
+      <div style="display:flex;align-items:center;gap:10px;font-weight:800;">
+        <span style="width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:12px;overflow:hidden;">${logo}</span>
+        <span>${esc(b.storeName)}</span>
+      </div>
+      <span style="width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;">${esc(b.icon_menu)}</span>
+    </div>
+    <div style="padding:12px 16px;background:${b.colorBg};display:flex;gap:8px;">
+      <span style="padding:6px 12px;border-radius:20px;background:${b.colorAccent};color:#3a2a06;font-size:12px;font-weight:700;">ຕົວຢ່າງປຸ່ມສີຄຳ</span>
+      <span style="padding:6px 12px;border-radius:20px;background:#fff;border:1px solid ${b.colorPrimaryLight}55;color:${b.colorPrimaryDark};font-size:12px;font-weight:700;">${esc(b.icon_home)} ໜ້າຫຼັກ</span>
+    </div>`;
+}
+
+function bindBrandingForm(){
+  renderBrandPreview();
+  const syncFromInputs = () => {
+    $all('[data-bkey]').forEach(inp=>{
+      const key = inp.dataset.bkey;
+      brandingDraft[key] = inp.value;
+      const twin = document.querySelector(`[data-bkey-text="${key}"]`);
+      if(twin && twin!==inp) twin.value = inp.value;
+    });
+    brandingDraft.storeName = $('#b_storeName').value;
+    brandingDraft.storeTagline = $('#b_storeTagline').value;
+    brandingDraft.logoText = $('#b_logoText').value;
+    brandingDraft.logoUrl = $('#b_logoUrl').value;
+    $all('[data-bkey^="icon_"]').forEach(inp=>{ brandingDraft[inp.dataset.bkey] = inp.value; });
+    $('#logoPreview').innerHTML = brandingDraft.logoUrl ? `<img src="${esc(brandingDraft.logoUrl)}">` : esc(brandingDraft.logoText||'LMG');
+    renderBrandPreview();
+  };
+  $all('#mainWrap input, #mainWrap select').forEach(inp=>{
+    if(inp.id==='reportSearch'||inp.id==='searchInput') return;
+    inp.addEventListener('input', syncFromInputs);
+  });
+  $all('[data-bkey-text]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const key = inp.dataset.bkeyText;
+      const colorInp = document.querySelector(`[data-bkey="${key}"]`);
+      if(colorInp && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(inp.value)) colorInp.value = inp.value;
+      syncFromInputs();
+    });
+  });
+  $all('.font-choice').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      $all('.font-choice').forEach(x=>x.classList.remove('active'));
+      el.classList.add('active');
+      brandingDraft.fontChoice = el.dataset.font;
+      renderBrandPreview();
+    });
+  });
+  const fileInp = $('#b_logoFile');
+  if(fileInp){
+    fileInp.addEventListener('change', (e)=>{
+      const file = e.target.files[0]; if(!file) return;
+      if(file.size > 900*1024){ showToast(ic('warn')+' ໄຟລ໌ໃຫຍ່ເກີນໄປ (ໃຫ້ນ້ອຍກວ່າ 900KB ຫຼື ໃຊ້ URL ແທນ)'); return; }
+      const reader = new FileReader();
+      reader.onload = ()=>{ brandingDraft.logoUrl = reader.result; $('#b_logoUrl').value = reader.result; syncFromInputs(); };
+      reader.readAsDataURL(file);
+    });
+  }
+  $('#btnSaveBranding').addEventListener('click', ()=>{
+    const btn = $('#btnSaveBranding'); btn.textContent='ກຳລັງบันทึก...'; btn.disabled=true;
+    const payload = Object.assign({}, CONFIG, { branding: brandingDraft });
+    google.script.run.withSuccessHandler(res=>{
+      btn.disabled=false; btn.innerHTML = ic('save')+' ບັນທຶກການຕົກແຕ່ງ';
+      if(res.success){ showToast(ic('ok')+' ບັນທຶກການຕົກແຕ່ງສຳເร็จ'); refreshAll(()=>renderView('branding')); }
+      else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
+    }).withFailureHandler(err=>{ btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກການຕົກແຕ່ງ'; showToast(ic('err')+' '+err.message); })
+    .updateConfig(payload, CURRENT_USER.role);
+  });
+  $('#btnResetBranding').addEventListener('click', ()=>{
+    if(!confirm('ຢືນຢັນຄືນຄ່າການຕົກແຕ່ງທັງໝົດກັບຄືນເປັນຄ່າເລີ່ມຕົ້ນ?')) return;
+    google.script.run.withSuccessHandler(()=>{
+      showToast(ic('ok')+' ຄືນຄ່າເລີ່ມຕົ້ນแล้ว'); refreshAll(()=>renderView('branding'));
+    }).withFailureHandler(err=>showToast(ic('err')+' '+err.message)).resetBranding(CURRENT_USER.role);
+  });
 }
 
 /*** ================= PROFILE (change password) ================= ***/
 function viewProfile(){
   return `
   <div class="card">
-    <div class="section-title">🔑 ປ່ຽນລະຫັດຜ່ານ</div>
-    <div class="section-sub">ບັນຊີ: ${esc(CURRENT_USER.fullName)} (${esc(CURRENT_USER.username)})</div>
+    <div class="section-title">${ic('profile')} ປ່ຽນລະຫັດຜ່ານ</div>
+    <div class="section-sub">บัญชี: ${esc(CURRENT_USER.fullName)} (${esc(CURRENT_USER.username)})</div>
     <div class="field"><label>ລະຫັດຜ່ານເກົ່າ</label><input type="password" id="p_old"></div>
     <div class="field"><label>ລະຫັດຜ່ານໃໝ່</label><input type="password" id="p_new"></div>
-    <button class="btn btn-primary" id="btnChangePw">ບັນທຶກລະຫັດຜ່ານໃໝ່</button>
+    <button class="btn btn-primary" id="btnChangePw">${ic('save')} บันทึกລະຫັດຜ່ານໃໝ່</button>
   </div>`;
 }
 
 /*** ================= AFTER-RENDER BINDINGS ================= ***/
 function afterRender(view){
-  if(view==='home'){
-    $('#btnSaveHome').addEventListener('click', saveHomeForm);
-  }
+  if(view==='home'){ $('#btnSaveHome').addEventListener('click', saveHomeForm); }
   if(view==='records'){
-    $('#searchInput').addEventListener('input', e=>{
-      recordFilterQuery = e.target.value;
-      $('#recordListArea').innerHTML = renderRecordList();
-    });
+    $('#searchInput').addEventListener('input', e=>{ recordFilterQuery = e.target.value; $('#recordListArea').innerHTML = renderRecordList(); });
   }
-  if(view==='dashboard'){
-    setTimeout(drawCharts, 30);
-  }
+  if(view==='dashboard'){ setTimeout(drawCharts, 30); }
   if(view==='report'){
-    $('#reportSearch').addEventListener('input', e=>{
-      reportFilterQuery = e.target.value;
-      $('#reportTableArea').innerHTML = renderReportTable();
-    });
+    $('#reportSearch').addEventListener('input', e=>{ reportFilterQuery = e.target.value; $('#reportTableArea').innerHTML = renderReportTable(); });
   }
   if(view==='settings'){
     $('#btnSaveConfig').addEventListener('click', ()=>{
       google.script.run.withSuccessHandler(res=>{
-        if(res.success) showToast('✅ ບັນທຶກການຕັ້ງຄ່າສຳເລັດ');
-        else showToast('❌ '+(res.message||'ບໍ່ສຳເລັດ'));
-      }).withFailureHandler(err=>showToast('❌ '+err.message)).updateConfig(CONFIG, CURRENT_USER.role);
+        if(res.success) showToast(ic('ok')+' ບັນທຶກການຕັ້ງຄ່າສຳເร็จ');
+        else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
+      }).withFailureHandler(err=>showToast(ic('err')+' '+err.message)).updateConfig(Object.assign({},CONFIG,{branding:CONFIG.branding}), CURRENT_USER.role);
     });
   }
+  if(view==='branding'){ bindBrandingForm(); }
   if(view==='profile'){
     $('#btnChangePw').addEventListener('click', ()=>{
       const oldPw = $('#p_old').value, newPw = $('#p_new').value;
-      if(!oldPw || !newPw){ showToast('⚠️ ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ'); return; }
+      if(!oldPw || !newPw){ showToast(ic('warn')+' ກະลุนาปอนข้อมูลให้ครบ'); return; }
       google.script.run.withSuccessHandler(res=>{
-        if(res.success){ showToast('✅ ປ່ຽນລະຫັດຜ່ານສຳເລັດ'); $('#p_old').value=''; $('#p_new').value=''; }
-        else showToast('❌ '+(res.message||'ບໍ່ສຳເລັດ'));
-      }).withFailureHandler(err=>showToast('❌ '+err.message)).changeOwnPassword(oldPw, newPw);
+        if(res.success){ showToast(ic('ok')+' ປ່ຽນລະຫັດຜ່ານสำเร็จ'); $('#p_old').value=''; $('#p_new').value=''; }
+        else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
+      }).withFailureHandler(err=>showToast(ic('err')+' '+err.message)).changeOwnPassword(oldPw, newPw);
     });
   }
 }
