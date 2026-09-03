@@ -1170,10 +1170,21 @@ function bindBrandingForm(){
   if(fileInp){
     fileInp.addEventListener('change', (e)=>{
       const file = e.target.files[0]; if(!file) return;
-      if(file.size > 200*1024){ showToast(ic('warn')+' ໄຟລ໌ໃຫຍ່ເກີນໄປ (ໃຫ້ນ້ອຍກວ່າ 200KB ຫຼື ໃຊ້ URL ຮູບແທນຈະໄວ ແລະ ໜ້າເຊື່ອຖືກວ່າ)'); return; }
-      const reader = new FileReader();
-      reader.onload = ()=>{ brandingDraft.logoUrl = reader.result; $('#b_logoUrl').value = reader.result; syncFromInputs(); };
-      reader.readAsDataURL(file);
+      if(!file.type.startsWith('image/')){ showToast(ic('warn')+' ກະລຸນາເລືອກໄຟລ໌ຮູບພາບ'); return; }
+      showToast('⏳ ກຳລັງຫຍໍ້ຂະໜາດຮູບ...');
+      compressImageToDataUrl_(file, 128, 128, 0.75).then(dataUrl=>{
+        // ຈຳກັດຄວາມຍາວ Base64 ໃຫ້ບໍ່ເກີນ 40,000 ຕົວອັກສອນ (Google Sheets ຈຳກັດ 1 ຊ່ອງທີ່ 50,000)
+        if(dataUrl.length > 40000){
+          showToast(ic('err')+' ຮູບຍັງໃຫຍ່ເກີນໄປຫຼັງບີບອັດ, ກະລຸນາໃຊ້ຮູບທີ່ມີລາຍລະອຽດໜ້ອຍກວ່ານີ້ ຫຼື ໃຊ້ URL ຮູບແທນ');
+          return;
+        }
+        brandingDraft.logoUrl = dataUrl;
+        $('#b_logoUrl').value = dataUrl;
+        syncFromInputs();
+        showToast(ic('ok')+' ຫຍໍ້ຂະໜາດຮູບສຳເລັດ ('+Math.round(dataUrl.length/1024)+'KB)');
+      }).catch(()=>{
+        showToast(ic('err')+' ບໍ່ສາມາດອ່ານໄຟລ໌ຮູບໄດ້');
+      });
     });
   }
   $('#btnSaveBranding').addEventListener('click', ()=>{
@@ -1190,6 +1201,31 @@ function bindBrandingForm(){
     google.script.run.withSuccessHandler(()=>{
       showToast(ic('ok')+' ຄືນຄ່າເລີ່ມຕົ້ນແລ້ວ'); refreshAll(()=>renderView('branding'));
     }).withFailureHandler(onApiFail_).resetBranding(CURRENT_USER.role);
+  });
+}
+
+// ຫຍໍ້ຂະໜາດຮູບ + ບີບອັດຄຸນນະພາບ ໂດຍໃຊ້ canvas ກ່ອນປ່ຽນເປັນ Base64
+// ຊ່ວຍໃຫ້ Base64 ທີ່ໄດ້ບໍ່ໃຫຍ່ເກີນຂີດຈຳກັດ 1 ຊ່ອງຂອງ Google Sheets (50,000 ຕົວອັກສອນ)
+function compressImageToDataUrl_(file, maxW, maxH, quality){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      img.onload = ()=>{
+        let w = img.width, h = img.height;
+        const ratio = Math.min(maxW/w, maxH/h, 1);
+        w = Math.round(w*ratio); h = Math.round(h*ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 }
 
