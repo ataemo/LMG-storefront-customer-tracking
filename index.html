@@ -953,7 +953,7 @@ function loadUsers(){
       <div class="record-item">
         <div>
           <div class="rname">${esc(u.fullName)} <span class="badge">${u.role==='admin'?'Admin':'ພະນັກງານ'}</span></div>
-          <div class="rmeta">Username: ${esc(u.username)} · ${u.active===false||u.active==='FALSE' ? '🔴 ປິດໃຊ້ງານ' : '🟢 ໃຊ້ງານຢູ່'}</div>
+          <div class="rmeta">Username: ${esc(u.username)} ${u.department?('· 🏢 '+esc(u.department)):''} · ${u.active===false||u.active==='FALSE' ? '🔴 ປິດໃຊ້ງານ' : '🟢 ໃຊ້ງານຢູ່'}</div>
         </div>
         <div class="record-actions">
           <button class="iconbtn-sm" onclick='openUserModal(${JSON.stringify(u)})'>${ic('edit')}</button>
@@ -974,6 +974,7 @@ function openUserModal(u){
         <option value="admin" ${editing&&u.role==='admin'?'selected':''}>Admin</option>
       </select>
     </div>
+    <div class="field"><label>ພະແນກ</label><input type="text" id="u_department" placeholder="ເຊັ່ນ: ຝ່າຍຂາຍ" value="${editing?esc(u.department||''):''}"></div>
     ${editing?`<div class="field"><label>ສະຖານະ</label><select id="u_active"><option value="true" ${u.active!==false&&u.active!=='FALSE'?'selected':''}>ໃຊ້ງານ</option><option value="false" ${u.active===false||u.active==='FALSE'?'selected':''}>ปิดໃຊ້ງານ</option></select></div>`:''}
     <div class="field"><label>${editing?'ລະຫັດຜ່ານໃໝ່ (ຢ່າງໜ້ອຍ 6 ໂຕ, ປ່ອຍວ່າງຖ້າບໍ່ປ່ຽນ)':'ລະຫັດຜ່ານ (ຢ່າງໜ້ອຍ 6 ໂຕ)'}</label><input type="password" id="u_password" minlength="6"></div>
     <button class="btn btn-primary" style="margin-top:6px;" id="btnSaveUser">${ic('save')} ບັນທຶກ</button>
@@ -982,7 +983,8 @@ function openUserModal(u){
   $('#btnSaveUser').addEventListener('click', ()=>{
     const payload = {
       username: $('#u_username').value.trim(), fullName: $('#u_fullName').value.trim(),
-      role: $('#u_role').value, password: $('#u_password').value
+      role: $('#u_role').value, password: $('#u_password').value,
+      department: $('#u_department').value.trim()
     };
     if(editing) payload.active = $('#u_active').value==='true';
     if(!payload.username || !payload.fullName || (!editing && !payload.password)){ showToast(ic('warn')+' ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ'); return; }
