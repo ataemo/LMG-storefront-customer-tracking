@@ -350,7 +350,8 @@ function apiCall_(action, args){
   return fetch(API_BASE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    redirect: 'follow'
   })
   .then(async res => {
     const raw = await res.text();
@@ -358,10 +359,23 @@ function apiCall_(action, args){
       return JSON.parse(raw);
     } catch (parseErr) {
       console.error('LMG API ຄືນຄ່າບໍ່ແມ່ນ JSON:', raw.slice(0, 500));
-      return { success:false, error:'API ຄືນຄ່າຜິດປົກກະຕິ (ອາດຍັງບໍ່ໄດ້ deploy ເວີຊັນໃໝ່ ຫຼື ຍັງບໍ່ໄດ້ authorize) — HTTP '+res.status };
+      // ຖ້າ raw ມີຄຳວ່າ accounts.google.com ຫຼື "Sign in" ແປວ່າ deployment ຍັງບໍ່ໄດ້ຕັ້ງ "Anyone"
+      const looksLikeLoginPage = /accounts\.google\.com|sign in|ອະນຸຍາດ/i.test(raw);
+      const hint = looksLikeLoginPage
+        ? 'ຄາດວ່າ deployment ຍັງບໍ່ໄດ້ຕັ້ງ "Who has access = Anyone" — ກະລຸນາໄປແກ້ໃນ Deploy > Manage deployments'
+        : 'ອາດຍັງບໍ່ໄດ້ deploy ເວີຊັນໃໝ່';
+      return { success:false, error:'API ຄືນຄ່າຜິດປົກກະຕິ ('+hint+') — HTTP '+res.status };
     }
   })
-  .catch(err => ({ success:false, error:'ເຊື່ອມຕໍ່ API ບໍ່ໄດ້ (Network error): '+(err && err.message || '') }));
+  .catch(err => {
+    const msg = (err && err.message) || '';
+    let hint = 'ກະລຸນາກວດການເຊື່ອມຕໍ່ອິນເຕີເນັດ';
+    if(msg.includes('Failed to fetch')){
+      hint = 'ອາດແມ່ນ deployment ຍັງບໍ່ໄດ້ຕັ້ງ "Anyone" ຫຼື ໜ້ານີ້ຖືກເປີດຜ່ານ file:// ແທນ https://';
+    }
+    console.error('LMG API fetch error:', err);
+    return { success:false, error:'ເຊື່ອມຕໍ່ API ບໍ່ໄດ້ ('+msg+') — '+hint };
+  });
 }
 
 // ຈຳລອງໜ້າຕາຂອງ google.script.run ໃຫ້ໂຄ້ດເດີມທັງໝົດ (withSuccessHandler/withFailureHandler().fn(...))
@@ -962,7 +976,7 @@ function openUserModal(u){
     </div>
     ${editing?`<div class="field"><label>ສະຖານະ</label><select id="u_active"><option value="true" ${u.active!==false&&u.active!=='FALSE'?'selected':''}>ໃຊ້ງານ</option><option value="false" ${u.active===false||u.active==='FALSE'?'selected':''}>ปิดໃຊ້ງານ</option></select></div>`:''}
     <div class="field"><label>${editing?'ລະຫັດຜ່ານໃໝ່ (ຢ່າງໜ້ອຍ 6 ໂຕ, ປ່ອຍວ່າງຖ້າບໍ່ປ່ຽນ)':'ລະຫັດຜ່ານ (ຢ່າງໜ້ອຍ 6 ໂຕ)'}</label><input type="password" id="u_password" minlength="6"></div>
-    <button class="btn btn-primary" style="margin-top:6px;" id="btnSaveUser">${ic('save')} บันทึก</button>
+    <button class="btn btn-primary" style="margin-top:6px;" id="btnSaveUser">${ic('save')} ບັນທຶກ</button>
   `;
   $('#modalOverlay').classList.add('show');
   $('#btnSaveUser').addEventListener('click', ()=>{
@@ -1187,7 +1201,7 @@ function viewProfile(){
     <div class="section-sub">บัญชี: ${esc(CURRENT_USER.fullName)} (${esc(CURRENT_USER.username)})</div>
     <div class="field"><label>ລະຫັດຜ່ານເກົ່າ</label><input type="password" id="p_old"></div>
     <div class="field"><label>ລະຫັດຜ່ານໃໝ່ (ຢ່າງໜ້ອຍ 6 ໂຕ)</label><input type="password" id="p_new" minlength="6"></div>
-    <button class="btn btn-primary" id="btnChangePw">${ic('save')} บันทึกລະຫັດຜ່ານໃໝ່</button>
+    <button class="btn btn-primary" id="btnChangePw">${ic('save')} ບັນທຶກລະຫັດຜ່ານໃໝ່</button>
   </div>`;
 }
 
