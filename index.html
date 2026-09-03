@@ -352,8 +352,16 @@ function apiCall_(action, args){
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(payload)
   })
-  .then(res => res.json())
-  .catch(() => ({ success:false, error:'ເຊື່ອມຕໍ່ API ບໍ່ໄດ້ (Network error)' }));
+  .then(async res => {
+    const raw = await res.text();
+    try {
+      return JSON.parse(raw);
+    } catch (parseErr) {
+      console.error('LMG API ຄືນຄ່າບໍ່ແມ່ນ JSON:', raw.slice(0, 500));
+      return { success:false, error:'API ຄືນຄ່າຜິດປົກກະຕິ (ອາດຍັງບໍ່ໄດ້ deploy ເວີຊັນໃໝ່ ຫຼື ຍັງບໍ່ໄດ້ authorize) — HTTP '+res.status };
+    }
+  })
+  .catch(err => ({ success:false, error:'ເຊື່ອມຕໍ່ API ບໍ່ໄດ້ (Network error): '+(err && err.message || '') }));
 }
 
 // ຈຳລອງໜ້າຕາຂອງ google.script.run ໃຫ້ໂຄ້ດເດີມທັງໝົດ (withSuccessHandler/withFailureHandler().fn(...))
@@ -438,6 +446,19 @@ let brandingDraft = null;
 function $(sel){return document.querySelector(sel);}
 function $all(sel){return document.querySelectorAll(sel);}
 function showToast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2400); }
+
+// ★★★ ເພີ່ມໃໝ່: ຟັງຊັນກາງຈັດການ error ຈາກ API (ໂດຍສະເພາະ session ໝົດອາຍຸ) ★★★
+function onApiFail_(err){
+  const msg = (err && err.message) || 'ເກີດຂໍ້ຜິດພາດ';
+  showToast(ic('err')+' '+msg);
+  if(msg.includes('ເຊດຊັນໝົດອາຍຸ') || msg.includes('ກະລຸນາເຂົ້າສູ່ລະບົບ')){
+    setTimeout(()=>{
+      sessionStorage.removeItem('lmg_user');
+      sessionStorage.removeItem('lmg_token');
+      location.reload();
+    }, 1600);
+  }
+}
 function fmtNum(n){ return (Number(n)||0).toLocaleString('en-US'); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 const CHART_COLORS = ['#7c3aed','#d4a93e','#16a34a','#dc2626','#0891b2','#db2777','#65a30d','#4c1d95','#ea580c','#0ea5e9'];
@@ -613,13 +634,14 @@ function saveHomeForm(){
   if(!payload.customerName){ showToast(ic('warn')+' ກະລຸນາປ້ອນຊື່ລູກຄ້າ'); return; }
   const btn = $('#btnSaveHome'); btn.textContent='ກຳລັງບັນທຶກ...'; btn.disabled=true;
   google.script.run.withSuccessHandler(res=>{
-    btn.disabled=false;
+    btn.disabled=false; btn.innerHTML = ic('save')+' ບັນທຶກລູກຄ້າ';
     if(res.success){
       showToast(ic('ok')+' ບັນທຶກລູກຄ້າສຳເລັດ');
       refreshAll(()=> renderView('home'));
-    } else { btn.innerHTML = ic('save')+' ບັນທຶກລູກຄ້າ'; showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
+    } else { showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
   }).withFailureHandler(err=>{
-    btn.disabled=false; btn.innerHTML = ic('save')+' ບັນທຶກລູກຄ້າ'; showToast(ic('err')+' ຜິດພາດ: '+err.message);
+    btn.disabled=false; btn.innerHTML = ic('save')+' ບັນທຶກລູກຄ້າ';
+    onApiFail_(err);
   }).addRecord(payload, CURRENT_USER.username);
 }
 
@@ -690,17 +712,17 @@ function openRecordModal(id){
     const btn = $('#btnSaveModal'); btn.textContent='ກຳລັງບັນທຶກ...'; btn.disabled=true;
     if(editingId){
       google.script.run.withSuccessHandler(res=>{
-        btn.disabled=false;
+        btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກ';
         if(res.success){ showToast(ic('ok')+' ແກ້ໄຂສຳເລັດ'); closeModal(); refreshAll(()=>renderView(currentView)); }
-        else { btn.innerHTML=ic('save')+' ບັນທຶກ'; showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
-      }).withFailureHandler(err=>{ btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກ'; showToast(ic('err')+' '+err.message); })
+        else { showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
+      }).withFailureHandler(err=>{ btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກ'; onApiFail_(err); })
       .updateRecord(editingId, payload, CURRENT_USER.username, CURRENT_USER.role);
     } else {
       google.script.run.withSuccessHandler(res=>{
-        btn.disabled=false;
+        btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກ';
         if(res.success){ showToast(ic('ok')+' ບັນທຶກສຳເລັດ'); closeModal(); refreshAll(()=>renderView(currentView)); }
-        else { btn.innerHTML=ic('save')+' ບັນທຶກ'; showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
-      }).withFailureHandler(err=>{ btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກ'; showToast(ic('err')+' '+err.message); })
+        else { showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
+      }).withFailureHandler(err=>{ btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກ'; onApiFail_(err); })
       .addRecord(payload, CURRENT_USER.username);
     }
   });
@@ -721,7 +743,7 @@ function confirmDelete(id){
     google.script.run.withSuccessHandler(res=>{
       if(res.success){ showToast('🗑️ ລຶບແລ້ວ'); closeModal(); refreshAll(()=>renderView(currentView)); }
       else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
-    }).withFailureHandler(err=>showToast(ic('err')+' '+err.message)).deleteRecord(id, CURRENT_USER.role);
+    }).withFailureHandler(onApiFail_).deleteRecord(id, CURRENT_USER.role);
   });
 }
 
@@ -830,22 +852,24 @@ function drawCharts(){
 
 /*** ================= REPORT (ຕາຕະລາງແບບ Excel) ================= ***/
 const REPORT_COLS = [
-  {key:'Timestamp', label:'Timestamp'}, {key:'ວັນທີ', label:'ວັນທີ'},
-  {key:'ຊື່ພະນັກງານຮັບລູກຄ້າ', label:'ຊື່ພະນັກງານຮັບລູກຄ້າ'}, {key:'Follow up', label:'Follow up'},
-  {key:'ເລກທີ Invoice', label:'ເລກທີ Invoice'}, {key:'ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ', label:'ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ'},
-  {key:'ເບີໂທຕິດຕໍ່', label:'ເບີໂທຕິດຕໍ່'}, {key:'ຮູ້ຈັກ LMG ທາງໃດ', label:'ຮູ້ຈັກ LMG ทาງใด'},
-  {key:'ສົນໃຈສິນຄ້າປะเพดใด', label:'ສົນໃຈສິນຄ້າປະເພດໃດ'}, {key:'ລູกถ้าສົນໃฉซื้ออันใด', label:'ລູກຄ້າສົນໃຈຊື້ອັນໃດ'},
-  {key:'ຈຳນວນ', label:'ຈຳນວນ'}, {key:'ລາຄາ', label:'ລາຄາ'}, {key:'ສະກຸນເງິນ', label:'ສະກຸນເງິນ'},
-  {key:'Status ຊື້ຄ້າ', label:'Status ຊື້ຄ້າ'}, {key:'Action ຕໍ່ໄປ', label:'Action ຕໍ່ໄປ'},
-  {key:'ໝາຍເຫດ', label:'ໝາຍເຫດ'}, {key:'ພະນັກງານຂາຍ', label:'ພะนักงานขาย'}
+  {key:'Timestamp', label:'Timestamp'},
+  {key:'ວັນທີ', label:'ວັນທີ'},
+  {key:'ຊື່ພະນັກງານຮັບລູກຄ້າ', label:'ຊື່ພະນັກງານຮັບລູກຄ້າ'},
+  {key:'Follow up', label:'Follow up'},
+  {key:'ເລກທີ Invoice', label:'ເລກທີ Invoice'},
+  {key:'ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ', label:'ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ'},
+  {key:'ເບີໂທຕິດຕໍ່', label:'ເບີໂທຕິດຕໍ່'},
+  {key:'ຮູ້ຈັກ LMG ທາງໃດ', label:'ຮູ້ຈັກ LMG ທາງໃດ'},
+  {key:'ສົນໃຈສິນຄ້າປະເພດໃດ', label:'ສົນໃຈສິນຄ້າປະເພດໃດ'},
+  {key:'ລູກຄ້າສົນໃຈຊື້ອັນໃດ', label:'ລູກຄ້າສົນໃຈຊື້ອັນໃດ'},
+  {key:'ຈຳນວນ', label:'ຈຳນວນ'},
+  {key:'ລາຄາ', label:'ລາຄາ'},
+  {key:'ສະກຸນເງິນ', label:'ສະກຸນເງິນ'},
+  {key:'Status ຊື້ຄ້າ', label:'Status ຊື້ຄ້າ'},
+  {key:'Action ຕໍ່ໄປ', label:'Action ຕໍ່ໄປ'},
+  {key:'ໝາຍເຫດ', label:'ໝາຍເຫດ'},
+  {key:'ພະນັກງານຂາຍ', label:'ພະນັກງານຂາຍ'}
 ];
-// (ໝາຍເຫດ: ໃຊ້ key ຕົວແທ້ຈາກ DATA_HEADERS ຝັ່ງ backend ຢູ່ຂ້າງລຸ່ມ ເພື່ອປ້ອງກັນຄວາມຜິດພາດໃນການພິມ)
-REPORT_COLS[0].key='Timestamp'; REPORT_COLS[1].key='ວັນທີ'; REPORT_COLS[2].key='ຊື່ພະນັກງານຮັບລູກຄ້າ';
-REPORT_COLS[3].key='Follow up'; REPORT_COLS[4].key='ເລກທີ Invoice'; REPORT_COLS[5].key='ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ';
-REPORT_COLS[6].key='ເບີໂທຕິດຕໍ່'; REPORT_COLS[7].key='ຮູ້ຈັກ LMG ທາງໃດ'; REPORT_COLS[8].key='ສົນໃຈສິນຄ້າປະເພດໃດ';
-REPORT_COLS[9].key='ລູກຄ້າສົນໃຈຊື້ອັນໃດ'; REPORT_COLS[10].key='ຈຳນວນ'; REPORT_COLS[11].key='ລາຄາ';
-REPORT_COLS[12].key='ສະກຸນເງິນ'; REPORT_COLS[13].key='Status ຊື້ຄ້າ'; REPORT_COLS[13].key='Status ຊື້ຄ້າ';
-REPORT_COLS[14].key='Action ຕໍ່ໄປ'; REPORT_COLS[15].key='ໝາຍເຫດ'; REPORT_COLS[16].key='ພະນັກງານຂາຍ';
 
 function viewReport(){
   return `
@@ -922,7 +946,7 @@ function loadUsers(){
           ${u.username!=='admin' ? `<button class="iconbtn-sm del" onclick="confirmDeleteUser('${u.username}')">${ic('delete')}</button>` : ''}
         </div>
       </div>`).join('') || emptyHtml('ຍັງບໍ່ມີພະນັກງານ');
-  }).withFailureHandler(err=>showToast(ic('err')+' '+err.message)).getUsers(CURRENT_USER.role);
+  }).withFailureHandler(onApiFail_).getUsers(CURRENT_USER.role);
 }
 function openUserModal(u){
   const editing = !!u;
@@ -937,7 +961,7 @@ function openUserModal(u){
       </select>
     </div>
     ${editing?`<div class="field"><label>ສະຖານະ</label><select id="u_active"><option value="true" ${u.active!==false&&u.active!=='FALSE'?'selected':''}>ໃຊ້ງານ</option><option value="false" ${u.active===false||u.active==='FALSE'?'selected':''}>ปิดໃຊ້ງານ</option></select></div>`:''}
-    <div class="field"><label>${editing?'ລະຫັດຜ່ານໃໝ່ (ປ່ອຍວ່າງຖ້າບໍ່ປ່ຽນ)':'ລະຫັດຜ່ານ'}</label><input type="password" id="u_password"></div>
+    <div class="field"><label>${editing?'ລະຫັດຜ່ານໃໝ່ (ຢ່າງໜ້ອຍ 6 ໂຕ, ປ່ອຍວ່າງຖ້າບໍ່ປ່ຽນ)':'ລະຫັດຜ່ານ (ຢ່າງໜ້ອຍ 6 ໂຕ)'}</label><input type="password" id="u_password" minlength="6"></div>
     <button class="btn btn-primary" style="margin-top:6px;" id="btnSaveUser">${ic('save')} บันทึก</button>
   `;
   $('#modalOverlay').classList.add('show');
@@ -952,7 +976,7 @@ function openUserModal(u){
     google.script.run.withSuccessHandler(res=>{
       if(res.success){ showToast(ic('ok')+' ບັນທຶກສຳເລັດ'); closeModal(); loadUsers(); }
       else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
-    }).withFailureHandler(err=>showToast(ic('err')+' '+err.message))[fn](payload, CURRENT_USER.role);
+    }).withFailureHandler(onApiFail_)[fn](payload, CURRENT_USER.role);
   });
 }
 function confirmDeleteUser(username){
@@ -968,7 +992,7 @@ function confirmDeleteUser(username){
     google.script.run.withSuccessHandler(res=>{
       if(res.success){ showToast('🗑️ ລຶບແລ້ວ'); closeModal(); loadUsers(); }
       else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
-    }).withFailureHandler(err=>showToast(ic('err')+' '+err.message)).deleteUser(username, CURRENT_USER.role);
+    }).withFailureHandler(onApiFail_).deleteUser(username, CURRENT_USER.role);
   });
 }
 
@@ -1132,27 +1156,26 @@ function bindBrandingForm(){
   if(fileInp){
     fileInp.addEventListener('change', (e)=>{
       const file = e.target.files[0]; if(!file) return;
-      if(file.size > 900*1024){ showToast(ic('warn')+' ໄຟລ໌ໃຫຍ່ເກີນໄປ (ໃຫ້ນ້ອຍກວ່າ 900KB ຫຼື ໃຊ້ URL ແທນ)'); return; }
+      if(file.size > 200*1024){ showToast(ic('warn')+' ໄຟລ໌ໃຫຍ່ເກີນໄປ (ໃຫ້ນ້ອຍກວ່າ 200KB ຫຼື ໃຊ້ URL ຮູບແທນຈະໄວ ແລະ ໜ້າເຊື່ອຖືກວ່າ)'); return; }
       const reader = new FileReader();
       reader.onload = ()=>{ brandingDraft.logoUrl = reader.result; $('#b_logoUrl').value = reader.result; syncFromInputs(); };
       reader.readAsDataURL(file);
     });
   }
   $('#btnSaveBranding').addEventListener('click', ()=>{
-    const btn = $('#btnSaveBranding'); btn.textContent='ກຳລັງบันทึก...'; btn.disabled=true;
-    const payload = Object.assign({}, CONFIG, { branding: brandingDraft });
+    const btn = $('#btnSaveBranding'); btn.textContent='ກຳລັງບັນທຶກ...'; btn.disabled=true;
     google.script.run.withSuccessHandler(res=>{
       btn.disabled=false; btn.innerHTML = ic('save')+' ບັນທຶກການຕົກແຕ່ງ';
-      if(res.success){ showToast(ic('ok')+' ບັນທຶກການຕົກແຕ່ງສຳເร็จ'); refreshAll(()=>renderView('branding')); }
+      if(res.success){ showToast(ic('ok')+' ບັນທຶກການຕົກແຕ່ງສຳເລັດ'); refreshAll(()=>renderView('branding')); }
       else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
-    }).withFailureHandler(err=>{ btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກການຕົກແຕ່ງ'; showToast(ic('err')+' '+err.message); })
-    .updateConfig(payload, CURRENT_USER.role);
+    }).withFailureHandler(err=>{ btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກການຕົກແຕ່ງ'; onApiFail_(err); })
+    .updateBranding(brandingDraft, CURRENT_USER.role);
   });
   $('#btnResetBranding').addEventListener('click', ()=>{
     if(!confirm('ຢືນຢັນຄືນຄ່າການຕົກແຕ່ງທັງໝົດກັບຄືນເປັນຄ່າເລີ່ມຕົ້ນ?')) return;
     google.script.run.withSuccessHandler(()=>{
-      showToast(ic('ok')+' ຄືນຄ່າເລີ່ມຕົ້ນแล้ว'); refreshAll(()=>renderView('branding'));
-    }).withFailureHandler(err=>showToast(ic('err')+' '+err.message)).resetBranding(CURRENT_USER.role);
+      showToast(ic('ok')+' ຄືນຄ່າເລີ່ມຕົ້ນແລ້ວ'); refreshAll(()=>renderView('branding'));
+    }).withFailureHandler(onApiFail_).resetBranding(CURRENT_USER.role);
   });
 }
 
@@ -1163,7 +1186,7 @@ function viewProfile(){
     <div class="section-title">${ic('profile')} ປ່ຽນລະຫັດຜ່ານ</div>
     <div class="section-sub">บัญชี: ${esc(CURRENT_USER.fullName)} (${esc(CURRENT_USER.username)})</div>
     <div class="field"><label>ລະຫັດຜ່ານເກົ່າ</label><input type="password" id="p_old"></div>
-    <div class="field"><label>ລະຫັດຜ່ານໃໝ່</label><input type="password" id="p_new"></div>
+    <div class="field"><label>ລະຫັດຜ່ານໃໝ່ (ຢ່າງໜ້ອຍ 6 ໂຕ)</label><input type="password" id="p_new" minlength="6"></div>
     <button class="btn btn-primary" id="btnChangePw">${ic('save')} บันทึกລະຫັດຜ່ານໃໝ່</button>
   </div>`;
 }
@@ -1181,20 +1204,21 @@ function afterRender(view){
   if(view==='settings'){
     $('#btnSaveConfig').addEventListener('click', ()=>{
       google.script.run.withSuccessHandler(res=>{
-        if(res.success) showToast(ic('ok')+' ບັນທຶກການຕັ້ງຄ່າສຳເร็จ');
+        if(res.success) showToast(ic('ok')+' ບັນທຶກການຕັ້ງຄ່າສຳເລັດ');
         else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
-      }).withFailureHandler(err=>showToast(ic('err')+' '+err.message)).updateConfig(Object.assign({},CONFIG,{branding:CONFIG.branding}), CURRENT_USER.role);
+      }).withFailureHandler(onApiFail_).updateDropdownConfig(CONFIG, CURRENT_USER.role);
     });
   }
   if(view==='branding'){ bindBrandingForm(); }
   if(view==='profile'){
     $('#btnChangePw').addEventListener('click', ()=>{
       const oldPw = $('#p_old').value, newPw = $('#p_new').value;
-      if(!oldPw || !newPw){ showToast(ic('warn')+' ກະลุนาปอนข้อมูลให้ครบ'); return; }
+      if(!oldPw || !newPw){ showToast(ic('warn')+' ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ'); return; }
+      if(newPw.length < 6){ showToast(ic('warn')+' ລະຫັດຜ່ານໃໝ່ຕ້ອງມີຢ່າງໜ້ອຍ 6 ໂຕອັກສອນ'); return; }
       google.script.run.withSuccessHandler(res=>{
-        if(res.success){ showToast(ic('ok')+' ປ່ຽນລະຫັດຜ່ານสำเร็จ'); $('#p_old').value=''; $('#p_new').value=''; }
+        if(res.success){ showToast(ic('ok')+' ປ່ຽນລະຫັດຜ່ານສຳເລັດ'); $('#p_old').value=''; $('#p_new').value=''; }
         else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
-      }).withFailureHandler(err=>showToast(ic('err')+' '+err.message)).changeOwnPassword(oldPw, newPw);
+      }).withFailureHandler(onApiFail_).changeOwnPassword(oldPw, newPw);
     });
   }
 }
