@@ -223,10 +223,19 @@ a{text-decoration:none;color:inherit;}
 @media(max-width:760px){.mini-grid{grid-template-columns:1fr;}}
 .mini-card{background:var(--card);border-radius:var(--radius-sm);padding:16px;box-shadow:var(--shadow-sm);border:1px solid var(--border);}
 .mini-card .mini-title{font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:10px;}
+.mini-foot{margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);font-size:11.5px;font-weight:700;color:var(--primary-dark);text-align:center;}
+.card,.mini-card,.stat-card{transition:box-shadow .2s ease, transform .2s ease;}
+.card:hover,.mini-card:hover{box-shadow:0 12px 28px -10px rgba(2,10,25,.22);transform:translateY(-1px);}
 .donut-wrap{position:relative;height:120px;}
 .donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
 .donut-center .pct{font-size:21px;font-weight:800;color:var(--primary-dark);}
 .donut-center .sub{font-size:10.5px;color:var(--muted);}
+.dash-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+.dash-toolbar select{padding:10px 14px;border:1.5px solid var(--border);border-radius:12px;background:#faf9ff;font-size:13.5px;font-weight:700;color:var(--text);}
+.btn-refresh{padding:10px 16px;border-radius:12px;background:#fff;border:1.5px solid var(--border);font-weight:700;font-size:13.5px;color:var(--primary-dark);display:flex;align-items:center;gap:6px;}
+.btn-refresh:active{background:#f2ecff;}
+.btn-refresh.spinning .ic-spin{display:inline-block;animation:spin .8s linear infinite;}
+.growth-pill{padding:8px 14px;border-radius:20px;font-size:12px;font-weight:800;}
 
 /* ---------- Branding / Appearance settings ---------- */
 .swatch-row{display:flex;gap:10px;flex-wrap:wrap;}
@@ -455,6 +464,8 @@ let editingId = null;
 let recordFilterQuery = '';
 let reportFilterQuery = '';
 let brandingDraft = null;
+let dashboardPeriod = 'all';
+let DASH_STATS = {};
 
 /*** ================= HELPERS ================= ***/
 function $(sel){return document.querySelector(sel);}
@@ -477,6 +488,54 @@ function fmtNum(n){ return (Number(n)||0).toLocaleString('en-US'); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 const CHART_COLORS = ['#7c3aed','#d4a93e','#16a34a','#dc2626','#0891b2','#db2777','#65a30d','#4c1d95','#ea580c','#0ea5e9'];
 function colorFor(i){ return CHART_COLORS[i % CHART_COLORS.length]; }
+const PERIOD_LABELS = { all:'ທັງໝົດ', today:'ມື້ນີ້', '7d':'7 ວັນຫຼ້າສຸດ', month:'ເດືອນນີ້', lastmonth:'ເດືອນແລ້ວ' };
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function addDays_(dateStr, delta){ const d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+delta); return d.toISOString().slice(0,10); }
+function monthKeyOf_(dateStr){ return String(dateStr||'').slice(0,7); }
+function shiftMonthKey_(ym, delta){ const [y,m]=ym.split('-').map(Number); const d=new Date(y, m-1+delta, 1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+function filterRecordsByPeriod(records, period){
+  const today = todayStr();
+  if(period==='today') return records.filter(r=> String(r['ວັນທີ']).slice(0,10)===today);
+  if(period==='7d'){ const from = addDays_(today,-6); return records.filter(r=> String(r['ວັນທີ']).slice(0,10) >= from); }
+  if(period==='month'){ const ym = monthKeyOf_(today); return records.filter(r=> monthKeyOf_(r['ວັນທີ'])===ym); }
+  if(period==='lastmonth'){ const ym = shiftMonthKey_(monthKeyOf_(today),-1); return records.filter(r=> monthKeyOf_(r['ວັນທີ'])===ym); }
+  return records;
+}
+
+function computeDashboardStats(records){
+  const stats = { total: records.length, revenueByCurrency:{}, byStatus:{}, byChannel:{}, byCategory:{}, byStaff:{}, byDate:{} };
+  records.forEach(r=>{
+    const cur = r['ສະກຸນເງິນ']||'KIP';
+    const price = Number(r['ລາຄາ'])||0;
+    const qty = Number(r['ຈຳນວນ'])||0;
+    stats.revenueByCurrency[cur] = (stats.revenueByCurrency[cur]||0) + price*(qty||1);
+    const st = r['Status ຊື້ຄ້າ']||'ບໍ່ລະບຸ';
+    stats.byStatus[st] = (stats.byStatus[st]||0)+1;
+    const ch = r['ຮູ້ຈັກ LMG ທາງໃດ']||'ບໍ່ລະບຸ';
+    stats.byChannel[ch] = (stats.byChannel[ch]||0)+1;
+    const cat = r['ສົນໃຈສິນຄ້າປະເພດໃດ']||'ບໍ່ລະບຸ';
+    stats.byCategory[cat] = (stats.byCategory[cat]||0)+1;
+    const staff = r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)']||'ບໍ່ລະບຸ';
+    stats.byStaff[staff] = (stats.byStaff[staff]||0)+1;
+    const d = String(r['ວັນທີ']||'').slice(0,10);
+    stats.byDate[d] = (stats.byDate[d]||0)+1;
+  });
+  return stats;
+}
+
+function computeMonthGrowth(records){
+  const today = todayStr();
+  const curYm = monthKeyOf_(today);
+  const prevYm = shiftMonthKey_(curYm,-1);
+  const curCount = records.filter(r=> monthKeyOf_(r['ວັນທີ'])===curYm).length;
+  const prevCount = records.filter(r=> monthKeyOf_(r['ວັນທີ'])===prevYm).length;
+  let pct;
+  if(prevCount>0) pct = Math.round(((curCount-prevCount)/prevCount)*100);
+  else pct = curCount>0 ? 100 : 0;
+  return { curYm, prevYm, curCount, prevCount, pct };
+}
 
 /*** ================= INIT ================= ***/
 window.addEventListener('load', () => {
@@ -777,17 +836,39 @@ function progressListHtml(dataObj, total){
 }
 
 function viewDashboard(){
-  const total = DASHBOARD.total||0;
-  const revStr = Object.entries(DASHBOARD.revenueByCurrency||{}).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
-  const closedPct = pctOf((DASHBOARD.byStatus&&DASHBOARD.byStatus['ຊື້ແລ້ວ'])||0, total);
-  const dateEntries = Object.entries(DASHBOARD.byDate||{}).sort((a,b)=>a[0]<b[0]?-1:1);
+  const filtered = filterRecordsByPeriod(RECORDS, dashboardPeriod);
+  DASH_STATS = computeDashboardStats(filtered);
+  const total = DASH_STATS.total||0;
+  const revStr = Object.entries(DASH_STATS.revenueByCurrency||{}).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
+  const closedPct = pctOf((DASH_STATS.byStatus&&DASH_STATS.byStatus['ຊື້ແລ້ວ'])||0, total);
+  const dateEntries = Object.entries(DASH_STATS.byDate||{}).sort((a,b)=>a[0]<b[0]?-1:1);
   const maxDay = dateEntries.reduce((m,e)=> e[1]>m.v ? {d:e[0],v:e[1]} : m, {d:'-',v:0});
+  const catEntries2 = Object.entries(DASH_STATS.byCategory||{}).sort((a,b)=>b[1]-a[1]);
+  const topCategoryLabel = catEntries2.length ? `🏆 ${catEntries2[0][0]} · ${catEntries2[0][1]} ລາຍການ` : 'ຍັງບໍ່ມີຂໍ້ມູນ';
+  const last7 = dateEntries.slice(-7);
+  const weekDelta = last7.length>=2 ? (last7[last7.length-1][1]-last7[0][1]) : 0;
+  const weekDeltaText = last7.length>=2
+    ? (weekDelta>=0 ? `📈 ເພີ່ມຂຶ້ນ ${weekDelta} ລູກຄ້າ` : `📉 ຫຼຸດລົງ ${Math.abs(weekDelta)} ລູກຄ້າ`) + ' ໃນຮອບ 7 ວັນ'
+    : 'ຍັງບໍ່ພຽງພໍຂໍ້ມູນ';
+  const closedCount = (DASH_STATS.byStatus&&DASH_STATS.byStatus['ຊື້ແລ້ວ'])||0;
+  const growth = computeMonthGrowth(RECORDS);
+  const growthUp = growth.pct>=0;
 
   return `
+  <div class="dash-toolbar">
+    <select id="dashPeriodSelect">
+      ${Object.entries(PERIOD_LABELS).map(([k,label])=>`<option value="${k}" ${dashboardPeriod===k?'selected':''}>${label}</option>`).join('')}
+    </select>
+    <button class="btn-refresh" id="btnDashRefresh"><span class="ic-spin">🔄</span> ໂຫລດຂໍ້ມູນໃໝ່</button>
+    <span class="growth-pill" style="background:${growthUp?'rgba(22,163,74,.14)':'rgba(220,38,38,.14)'};color:${growthUp?'#15803d':'#b91c1c'};">
+      ${growthUp?'📈':'📉'} ${growth.pct>=0?'+':''}${growth.pct}% ທຽບເດືອນແລ້ວ (${growth.curCount} vs ${growth.prevCount})
+    </span>
+  </div>
+
   <div class="card hero">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;position:relative;z-index:1;">
       <div>
-        <div style="font-size:12.5px;opacity:.85;">${CURRENT_USER.role==='admin'?'ພາບລວມຮ້ານທັງໝົດ':'ພາບລວມຂອງຂ້ອຍ'}</div>
+        <div style="font-size:12.5px;opacity:.85;">${CURRENT_USER.role==='admin'?'ພາບລວມຮ້ານທັງໝົດ':'ພາບລວມຂອງຂ້ອຍ'} · ${PERIOD_LABELS[dashboardPeriod]}</div>
         <div style="font-size:30px;font-weight:800;margin-top:2px;">${total} <span style="font-size:14px;font-weight:600;opacity:.85;">ລູກຄ້າ</span></div>
         <div style="font-size:13px;opacity:.9;margin-top:2px;">ມູນຄ່າລວມ: ${revStr}</div>
       </div>
@@ -805,33 +886,36 @@ function viewDashboard(){
       <div class="donut-wrap"><canvas id="chartClose"></canvas>
         <div class="donut-center"><div class="pct">${closedPct}%</div><div class="sub">ຊື້ແລ້ວ</div></div>
       </div>
+      <div class="mini-foot">${closedCount} / ${total} ລາຍການ</div>
     </div>
     <div class="mini-card">
       <div class="mini-title">ປະເພດສິນຄ້າຍອດນິຍົມ</div>
       <div class="chart-box sm"><canvas id="chartCategory"></canvas></div>
+      <div class="mini-foot">${topCategoryLabel}</div>
     </div>
     <div class="mini-card">
       <div class="mini-title">ແນວໂນ້ມ 7 ວັນຫຼ້າສຸດ</div>
       <div class="chart-box sm"><canvas id="chartWeek"></canvas></div>
+      <div class="mini-foot">${weekDeltaText}</div>
     </div>
   </div>
 
   <div class="card">
     <div class="section-title" style="font-size:14.5px;">ຊ່ອງທາງທີ່ລູກຄ້າຮູ້ຈັກ LMG</div>
-    <div class="section-sub">ອີງຕາມຈຳນວນລູກຄ້າ ${total} ຄົນ</div>
-    ${progressListHtml(DASHBOARD.byChannel, total)}
+    <div class="section-sub">ອີງຕາມຈຳນວນລູກຄ້າ ${total} ຄົນ (${PERIOD_LABELS[dashboardPeriod]})</div>
+    ${progressListHtml(DASH_STATS.byChannel, total)}
   </div>
   <div class="card">
     <div class="section-title" style="font-size:14.5px;">ສະຖານະລູກຄ້າ</div>
-    <div class="section-sub">ອີງຕາມຈຳນວນລູກຄ້າ ${total} ຄົນ</div>
-    ${progressListHtml(DASHBOARD.byStatus, total)}
+    <div class="section-sub">ອີງຕາມຈຳນວນລູກຄ້າ ${total} ຄົນ (${PERIOD_LABELS[dashboardPeriod]})</div>
+    ${progressListHtml(DASH_STATS.byStatus, total)}
   </div>
-  ${CURRENT_USER.role==='admin' ? `<div class="card"><div class="section-title" style="font-size:14.5px;">ຈຳນວນລູກຄ້າຕໍ່ພະນັກງານ</div><div class="section-sub">ໃຜຮັບລູກຄ້າຫຼາຍທີ່ສຸດ</div>${progressListHtml(DASHBOARD.byStaff, total)}</div>` : ''}
+  ${CURRENT_USER.role==='admin' ? `<div class="card"><div class="section-title" style="font-size:14.5px;">ຈຳນວນລູກຄ້າຕໍ່ພະນັກງານ</div><div class="section-sub">ໃຜຮັບລູກຄ້າຫຼາຍທີ່ສຸດ (${PERIOD_LABELS[dashboardPeriod]})</div>${progressListHtml(DASH_STATS.byStaff, total)}</div>` : ''}
   `;
 }
 
 function drawCharts(){
-  const dateEntries = Object.entries(DASHBOARD.byDate||{}).sort((a,b)=>a[0]<b[0]?-1:1);
+  const dateEntries = Object.entries(DASH_STATS.byDate||{}).sort((a,b)=>a[0]<b[0]?-1:1);
   const trendEl = document.getElementById('chartTrend');
   if(trendEl){
     const ctx = trendEl.getContext('2d');
@@ -845,14 +929,14 @@ function drawCharts(){
   }
   const closeEl = document.getElementById('chartClose');
   if(closeEl){
-    const closed = (DASHBOARD.byStatus&&DASHBOARD.byStatus['ຊື້ແລ້ວ'])||0;
-    const rest = Math.max((DASHBOARD.total||0)-closed,0);
+    const closed = (DASH_STATS.byStatus&&DASH_STATS.byStatus['ຊື້ແລ້ວ'])||0;
+    const rest = Math.max((DASH_STATS.total||0)-closed,0);
     new Chart(closeEl,{ type:'doughnut', data:{ labels:['ຊື້ແລ້ວ','ອື່ນໆ'], datasets:[{ data:[closed,rest||1], backgroundColor:[BRAND.colorAccent,'#efeaf9'], borderWidth:0 }] },
       options:{ responsive:true, maintainAspectRatio:false, cutout:'74%', plugins:{ legend:{display:false}, tooltip:{enabled:true} } } });
   }
   const catEl = document.getElementById('chartCategory');
   if(catEl){
-    const entries = Object.entries(DASHBOARD.byCategory||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const entries = Object.entries(DASH_STATS.byCategory||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
     new Chart(catEl,{ type:'bar', data:{ labels: entries.map(e=>e[0]), datasets:[{ data: entries.map(e=>e[1]), backgroundColor: entries.map((_,i)=>colorFor(i)), borderRadius:6 }] },
       options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ beginAtZero:true, ticks:{precision:0,font:{size:10}} }, y:{ ticks:{font:{size:10}} } } } });
   }
@@ -1249,7 +1333,14 @@ function afterRender(view){
   if(view==='records'){
     $('#searchInput').addEventListener('input', e=>{ recordFilterQuery = e.target.value; $('#recordListArea').innerHTML = renderRecordList(); });
   }
-  if(view==='dashboard'){ setTimeout(drawCharts, 30); }
+  if(view==='dashboard'){
+    setTimeout(drawCharts, 80);
+    $('#dashPeriodSelect').addEventListener('change', e=>{ dashboardPeriod = e.target.value; renderView('dashboard'); });
+    $('#btnDashRefresh').addEventListener('click', ()=>{
+      const btn = $('#btnDashRefresh'); btn.classList.add('spinning'); btn.disabled=true;
+      refreshAll(()=>{ btn.classList.remove('spinning'); btn.disabled=false; showToast(ic('ok')+' ໂຫລດຂໍ້ມູນໃໝ່ແລ້ວ'); renderView('dashboard'); });
+    });
+  }
   if(view==='report'){
     $('#reportSearch').addEventListener('input', e=>{ reportFilterQuery = e.target.value; $('#reportTableArea').innerHTML = renderReportTable(); });
   }
