@@ -106,6 +106,19 @@ a{text-decoration:none;color:inherit;}
   box-shadow:0 6px 20px -6px rgba(76,29,149,.4);
 }
 .topbar .brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:16.5px;min-width:0;}
+.topbar-nav{display:none;gap:6px;flex:1;justify-content:center;}
+.topbar-nav-item{
+  display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:12px;
+  color:#fff;font-weight:700;font-size:13.5px;background:rgba(255,255,255,.08);
+  white-space:nowrap;
+}
+.topbar-nav-item:hover{background:rgba(255,255,255,.18);}
+.topbar-nav-item.active{background:rgba(255,255,255,.28);}
+
+/* ສະແດງສະເພາະຈໍກວ້າງ (ແທັບເລັດ/ພີຊີ) - ໃຊ້ breakpoint ດຽວກັບ bottom-nav (900px) */
+@media(min-width:900px){
+  .topbar-nav{display:flex;}
+}
 .topbar .brand-mark{width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;overflow:hidden;flex-shrink:0;}
 .topbar .brand-mark img{width:100%;height:100%;object-fit:cover;}
 .topbar .brand .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -299,6 +312,14 @@ a{text-decoration:none;color:inherit;}
       <span class="brand-mark" id="topbarLogo">LMG</span>
       <span class="name js-store-name">LMG Store</span>
     </div>
+
+    <!-- ★ ເພີ່ມໃໝ່: ແຖບເມນູລັດ ສະເພາະໂໝດແທັບເລັດ/ພີຊີ -->
+    <div class="topbar-nav" id="topbarNav">
+      <div class="topbar-nav-item" data-view="home"><span data-icon="home">🏠</span> ໜ້າຫຼັກ</div>
+      <div class="topbar-nav-item" data-view="dashboard"><span data-icon="dashboard">📊</span> ແດັດບອດ</div>
+      <div class="topbar-nav-item" data-view="records"><span data-icon="records">📋</span> ລາຍການລູກຄ້າ</div>
+    </div>
+
     <button class="iconbtn" id="btnMenu" data-icon="menu">☰</button>
   </div>
 
@@ -620,6 +641,7 @@ $('#overlay').addEventListener('click', closeDrawer);
 function closeDrawer(){ $('#drawer').classList.remove('open'); $('#overlay').classList.remove('show'); }
 $all('.drawer-item').forEach(el=>{ el.addEventListener('click', ()=>{ renderView(el.dataset.view); closeDrawer(); }); });
 $all('.bottom-nav-item').forEach(el=>{ el.addEventListener('click', ()=> renderView(el.dataset.view)); });
+$all('.topbar-nav-item').forEach(el=>{ el.addEventListener('click', ()=> renderView(el.dataset.view)); });
 $('#btnLogout').addEventListener('click', ()=>{
   google.script.run.logout(AUTH_TOKEN);
   sessionStorage.removeItem('lmg_user');
@@ -633,6 +655,7 @@ function renderView(view){
   currentView = view;
   $all('.drawer-item').forEach(el=> el.classList.toggle('active', el.dataset.view===view));
   $all('.bottom-nav-item').forEach(el=> el.classList.toggle('active', el.dataset.view===view));
+  $all('.topbar-nav-item').forEach(el=> el.classList.toggle('active', el.dataset.view===view));
   const wrap = $('#mainWrap');
   if(view==='home') wrap.innerHTML = viewHome();
   else if(view==='records') wrap.innerHTML = viewRecords();
