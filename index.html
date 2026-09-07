@@ -487,8 +487,21 @@ let recordFilterQuery = '';
 let reportFilterQuery = '';
 let brandingDraft = null;
 let dashboardPeriod = 'all';
+let configDirty = false;
 let DASH_STATS = {};
 let STAFF_LIST = [];
+let CHART_INSTANCES = {};
+function destroyChart_(key){ if(CHART_INSTANCES[key]){ CHART_INSTANCES[key].destroy(); delete CHART_INSTANCES[key]; } }
+function debounce_(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+window.addEventListener('resize', debounce_(()=>{
+  Object.values(CHART_INSTANCES).forEach(c=> c && c.resize());
+}, 150));
+document.addEventListener('click', (e)=>{
+  const editBtn = e.target.closest('[data-action="edit-record"]');
+  if(editBtn){ openRecordModal(editBtn.dataset.id); return; }
+  const delBtn = e.target.closest('[data-action="delete-record"]');
+  if(delBtn){ confirmDelete(delBtn.dataset.id); return; }
+});
 
 /*** ================= HELPERS ================= ***/
 function $(sel){return document.querySelector(sel);}
@@ -690,6 +703,12 @@ $('#btnFab').addEventListener('click', ()=> openRecordModal(null));
 
 /*** ================= ROUTER ================= ***/
 function renderView(view){
+  if(currentView==='settings' && configDirty && view!=='settings'){
+    if(!confirm('ທ່ານຍັງບໍ່ໄດ້ບັນທຶກການຕັ້ງຄ່າ. ຕ້ອງການອອກໂດຍບໍ່ບັນທຶກແທ້ບໍ?')){
+      return;
+    }
+    configDirty = false;
+  }
   currentView = view;
   $all('.drawer-item').forEach(el=> el.classList.toggle('active', el.dataset.view===view));
   $all('.bottom-nav-item').forEach(el=> el.classList.toggle('active', el.dataset.view===view));
@@ -800,7 +819,8 @@ function recordItemHtml(r){
     <div style="flex:1;min-width:0;">
       <div class="rname">${esc(r['ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ']||'(ບໍ່ມີຊື່)')} ${r['ເບີໂທຕິດຕໍ່']?('· '+esc(r['ເບີໂທຕິດຕໍ່'])):''}</div>
       <div class="rmeta">
-        <span class="badge">${esc(r['ສົນໃຈສິນຄ້າປະເພດໃດ']||r['ສົນໃຈສິນຄ້າປະເພດໃດ']||'-')}</span>
+        <span class="badge">${esc(r['ຮູ້ຈັກ LMG ທາງໃດ']||'-')}</span>
+        <span class="badge">${esc(r['ສົນໃຈສິນຄ້າປະເພດໃດ']||'-')}</span>
         <span class="badge status">${esc(r['Status ຊື້ຄ້າ']||'-')}</span><br>
         🛍️ ${esc(r['ລູກຄ້າສົນໃຈຊື້ອັນໃດ']||'-')} · ${fmtNum(r['ລາຄາ'])} ${esc(r['ສະກຸນເງິນ']||'')}<br>
         📅 ${esc(String(r['ວັນທີ']||'').slice(0,10))}
@@ -812,8 +832,8 @@ function recordItemHtml(r){
     </div>
     ${canEdit ? `
     <div class="record-actions">
-      <button class="iconbtn-sm" onclick="openRecordModal('${r['ID']}')">${ic('edit')}</button>
-      ${CURRENT_USER.role==='admin' ? `<button class="iconbtn-sm del" onclick="confirmDelete('${r['ID']}')">${ic('delete')}</button>` : ''}
+      <button class="iconbtn-sm" data-action="edit-record" data-id="${esc(r['ID'])}">${ic('edit')}</button>
+      ${CURRENT_USER.role==='admin' ? `<button class="iconbtn-sm del" data-action="delete-record" data-id="${esc(r['ID'])}">${ic('delete')}</button>` : ''}
     </div>` : ''}
   </div>`;
 }
@@ -916,12 +936,14 @@ function progressListHtml(dataObj, total){
 function staffProgressHtml(dataObj, total){
   const entries = Object.entries(dataObj||{}).sort((a,b)=>b[1]-a[1]);
   if(!entries.length) return `<div class="section-sub" style="margin:0;">ຍັງບໍ່ມີຂໍ້ມູນ</div>`;
+  const medals = ['🥇','🥈','🥉'];
   return entries.map(([label,count],i)=>{
     const pct = pctOf(count,total);
     const photo = photoForStaffName(label);
+    const medal = medals[i] ? medals[i]+' ' : '';
     return `<div class="pb-row">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <span style="display:flex;align-items:center;gap:10px;">${avatarHtml(label, photo, 40)}<span style="font-size:13.5px;font-weight:700;">${esc(label)}</span></span>
+        <span style="display:flex;align-items:center;gap:10px;">${avatarHtml(label, photo, 40)}<span style="font-size:13.5px;font-weight:700;">${medal}${esc(label)}</span></span>
         <span class="n" style="font-size:12.5px;">${count} · ${pct}%</span>
       </div>
       <div class="pb-track"><div class="pb-fill" style="width:${pct}%;background:${colorFor(i)};"></div></div>
@@ -952,6 +974,7 @@ function viewDashboard(){
   const closedPct = pctOf((DASH_STATS.byStatus&&DASH_STATS.byStatus['ຊື້ແລ້ວ'])||0, total);
   const dateEntries = Object.entries(DASH_STATS.byDate||{}).sort((a,b)=>a[0]<b[0]?-1:1);
   const maxDay = dateEntries.reduce((m,e)=> e[1]>m.v ? {d:e[0],v:e[1]} : m, {d:'-',v:0});
+  const avgPerDay = dateEntries.length ? Math.round(total/dateEntries.length) : 0;
   const catEntries2 = Object.entries(DASH_STATS.byCategory||{}).sort((a,b)=>b[1]-a[1]);
   const topCategoryLabel = catEntries2.length ? `🏆 ${catEntries2[0][0]} · ${catEntries2[0][1]} ລາຍການ` : 'ຍັງບໍ່ມີຂໍ້ມູນ';
   const last7 = dateEntries.slice(-7);
@@ -980,6 +1003,7 @@ function viewDashboard(){
         <div style="font-size:12.5px;opacity:.85;">${CURRENT_USER.role==='admin'?'ພາບລວມຮ້ານທັງໝົດ':'ພາບລວມຂອງຂ້ອຍ'} · ${PERIOD_LABELS[dashboardPeriod]}</div>
         <div style="font-size:30px;font-weight:800;margin-top:2px;">${total} <span style="font-size:14px;font-weight:600;opacity:.85;">ລູກຄ້າ</span></div>
         <div style="font-size:13px;opacity:.9;margin-top:2px;">ມູນຄ່າລວມ: ${revStr}</div>
+        <div style="font-size:12px;opacity:.85;margin-top:2px;">ສະເລ່ຍ ${avgPerDay} ລູກຄ້າ/ວັນ</div>
       </div>
       <div style="text-align:right;">
         <div style="font-size:11px;opacity:.8;">ວັນທີ່ຄຶກຄັກທີ່ສຸດ</div>
@@ -1025,48 +1049,63 @@ function viewDashboard(){
     <div class="section-sub">ອີງຕາມຈຳນວນລູກຄ້າ ${total} ຄົນ (${PERIOD_LABELS[dashboardPeriod]})</div>
     ${progressListHtml(DASH_STATS.byStatus, total)}
   </div>
-  ${CURRENT_USER.role==='admin' ? `<div class="card"><div class="section-title" style="font-size:14.5px;">ຈຳນວນລູກຄ້າຕໍ່ພະນັກງານ</div><div class="section-sub">ໃຜຮັບລູກຄ້າຫຼາຍທີ່ສຸດ (${PERIOD_LABELS[dashboardPeriod]})</div>${staffProgressHtml(DASH_STATS.byStaff, total)}</div>` : ''}
+  ${CURRENT_USER.role==='admin' ? `<div class="card"><div class="section-title" style="font-size:14.5px;">ຈຳນວນລູກຄ້າຕໍ່ພະນັກງານ</div><div class="section-sub">ພະນັກງານທີ່ມີການເຄື່ອນໄຫວ ${Object.keys(DASH_STATS.byStaff||{}).length} ຄົນ · ${PERIOD_LABELS[dashboardPeriod]}</div>${staffProgressHtml(DASH_STATS.byStaff, total)}</div>` : ''}
   `;
 }
 
 function drawCharts(){
   const dateEntries = Object.entries(DASH_STATS.byDate||{}).sort((a,b)=>a[0]<b[0]?-1:1);
+
+  // ---- ກຣາຟເສັ້ນ ໃນກາດໃຫຍ່ (Trend) ----
   const trendEl = document.getElementById('chartTrend');
   if(trendEl){
+    destroyChart_('trend');
     const ctx = trendEl.getContext('2d');
     const grad = ctx.createLinearGradient(0,0,0,trendEl.parentElement.clientHeight||220);
     grad.addColorStop(0,'rgba(255,255,255,.55)');
     grad.addColorStop(1,'rgba(255,255,255,0)');
-    new Chart(trendEl,{ type:'line',
+    CHART_INSTANCES['trend'] = new Chart(trendEl,{ type:'line',
       data:{ labels: dateEntries.map(e=>e[0].slice(5)), datasets:[{ data: dateEntries.map(e=>e[1]), borderColor:'#ffffff', backgroundColor:grad, fill:true, tension:.4, pointRadius:3, pointBackgroundColor:'#ffffff', pointBorderColor:BRAND.colorAccent, pointBorderWidth:2, borderWidth:2.5 }] },
       options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ grid:{display:false}, ticks:{ color:'rgba(255,255,255,.85)', font:{size:10} } }, y:{ display:false, beginAtZero:true } } }
     });
   }
+
+  // ---- ໂດນັດ ອັດຕາປິດການຂາຍ ----
   const closeEl = document.getElementById('chartClose');
   if(closeEl){
+    destroyChart_('close');
     const closed = (DASH_STATS.byStatus&&DASH_STATS.byStatus['ຊື້ແລ້ວ'])||0;
     const rest = Math.max((DASH_STATS.total||0)-closed,0);
-    new Chart(closeEl,{ type:'doughnut', data:{ labels:['ຊື້ແລ້ວ','ອື່ນໆ'], datasets:[{ data:[closed,rest||1], backgroundColor:[BRAND.colorAccent,'#efeaf9'], borderWidth:0 }] },
+    CHART_INSTANCES['close'] = new Chart(closeEl,{ type:'doughnut', data:{ labels:['ຊື້ແລ້ວ','ອື່ນໆ'], datasets:[{ data:[closed,rest||1], backgroundColor:[BRAND.colorAccent,'#efeaf9'], borderWidth:0 }] },
       options:{ responsive:true, maintainAspectRatio:false, cutout:'74%', plugins:{ legend:{display:false}, tooltip:{enabled:true} } } });
   }
+
+  // ---- ໂດນັດ ຊ່ອງທາງ ----
   const chanEl = document.getElementById('chartChannel');
   if(chanEl){
+    destroyChart_('channel');
     const entries = Object.entries(DASH_STATS.byChannel||{}).sort((a,b)=>b[1]-a[1]);
-    new Chart(chanEl,{ type:'doughnut',
+    CHART_INSTANCES['channel'] = new Chart(chanEl,{ type:'doughnut',
       data:{ labels: entries.map(e=>e[0]), datasets:[{ data: entries.map(e=>e[1]), backgroundColor: entries.map((_,i)=>colorFor(i)), borderWidth:0 }] },
       options:{ responsive:true, maintainAspectRatio:false, cutout:'68%', plugins:{ legend:{display:false}, tooltip:{enabled:true} } }
     });
   }
+
+  // ---- ແທ່ງ ປະເພດສິນຄ້າ ----
   const catEl = document.getElementById('chartCategory');
   if(catEl){
+    destroyChart_('category');
     const entries = Object.entries(DASH_STATS.byCategory||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    new Chart(catEl,{ type:'bar', data:{ labels: entries.map(e=>e[0]), datasets:[{ data: entries.map(e=>e[1]), backgroundColor: entries.map((_,i)=>colorFor(i)), borderRadius:6 }] },
+    CHART_INSTANCES['category'] = new Chart(catEl,{ type:'bar', data:{ labels: entries.map(e=>e[0]), datasets:[{ data: entries.map(e=>e[1]), backgroundColor: entries.map((_,i)=>colorFor(i)), borderRadius:6 }] },
       options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ beginAtZero:true, ticks:{precision:0,font:{size:10}} }, y:{ ticks:{font:{size:10}} } } } });
   }
+
+  // ---- ເສັ້ນ ແນວໂນ້ມ 7 ວັນ ----
   const weekEl = document.getElementById('chartWeek');
   if(weekEl){
+    destroyChart_('week');
     const last7 = dateEntries.slice(-7);
-    new Chart(weekEl,{ type:'line', data:{ labels: last7.map(e=>e[0].slice(8)), datasets:[{ data: last7.map(e=>e[1]), borderColor:BRAND.colorPrimaryLight, backgroundColor:'rgba(124,58,237,.12)', fill:true, tension:.4, pointRadius:2, borderWidth:2 }] },
+    CHART_INSTANCES['week'] = new Chart(weekEl,{ type:'line', data:{ labels: last7.map(e=>e[0].slice(8)), datasets:[{ data: last7.map(e=>e[1]), borderColor:BRAND.colorPrimaryLight, backgroundColor:'rgba(124,58,237,.12)', fill:true, tension:.4, pointRadius:2, borderWidth:2 }] },
       options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ grid:{display:false}, ticks:{font:{size:9}} }, y:{ display:false, beginAtZero:true } } } });
   }
 }
@@ -1126,8 +1165,11 @@ function formatReportCell(key, val){
 }
 
 function exportCSV(){
+  const q = reportFilterQuery.toLowerCase().trim();
+  let list = RECORDS;
+  if(q){ list = list.filter(r => REPORT_COLS.some(c => String(r[c.key]||'').toLowerCase().includes(q))); }
   const rows = [REPORT_COLS.map(c=>c.label)];
-  RECORDS.forEach(r=> rows.push(REPORT_COLS.map(c=> r[c.key]!=null ? String(r[c.key]).replace(/"/g,'""') : '')));
+  list.forEach(r=> rows.push(REPORT_COLS.map(c=> r[c.key]!=null ? String(r[c.key]).replace(/"/g,'""') : '')));
   const csv = rows.map(row=> row.map(v=>`"${v}"`).join(',')).join('\n');
   const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
@@ -1135,7 +1177,7 @@ function exportCSV(){
   a.href = url; a.download = 'lmg_ລາຍງານລູກຄ້າ_'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast(ic('export')+' ດາວໂຫລດ CSV ສຳເລັດ');
+  showToast(ic('export')+' ດາວໂຫລດ CSV ສຳເລັດ ('+list.length+' ລາຍການ)');
 }
 
 /*** ================= ADMIN: USERS ================= ***/
@@ -1207,12 +1249,18 @@ function openUserModal(username){
     userPhotoFile.addEventListener('change', e=>{
       const file = e.target.files[0]; if(!file) return;
       if(!file.type.startsWith('image/')){ showToast(ic('warn')+' ກະລຸນາເລືອກໄຟລ໌ຮູບພາບ'); return; }
+      showToast('⏳ ກຳລັງຫຍໍ້ຂະໜາດຮູບ...');
+      userPhotoFile.disabled = true;
       compressImageToDataUrl_(file, 160, 160, 0.75).then(dataUrl=>{
+        userPhotoFile.disabled = false;
         if(dataUrl.length > 40000){ showToast(ic('err')+' ຮູບໃຫຍ່ເກີນໄປ ກະລຸນາໃຊ້ຮູບນ້ອຍກວ່ານີ້'); return; }
         $('#u_photo').value = dataUrl;
         $('#userPhotoPreview').innerHTML = `<img src="${dataUrl}">`;
-        showToast(ic('ok')+' ອັບໂຫລດຮູບສຳເລັດ');
-      }).catch(()=>{ showToast(ic('err')+' ບໍ່ສາມາດອ່ານໄຟລ໌ຮູບໄດ້'); });
+        showToast(ic('ok')+' ອັບໂຫລດຮູບສຳເລັດ ('+Math.round(dataUrl.length/1024)+'KB)');
+      }).catch(()=>{
+        userPhotoFile.disabled = false;
+        showToast(ic('err')+' ບໍ່ສາມາດອ່ານໄຟລ໌ຮູບໄດ້');
+      });
     });
   }
   $('#btnSaveUser').addEventListener('click', ()=>{
@@ -1279,9 +1327,10 @@ function addPill(key){
   if(!v) return;
   CONFIG[key].push(v);
   input.value='';
+  configDirty = true;
   renderView('settings');
 }
-function removePill(key, idx){ CONFIG[key].splice(idx,1); renderView('settings'); }
+function removePill(key, idx){ CONFIG[key].splice(idx,1); configDirty = true; renderView('settings'); }
 
 /*** ================= ADMIN: BRANDING (ตกแต่งแอป) ================= ***/
 function viewBranding(){
@@ -1489,7 +1538,9 @@ function afterRender(view){
     $('#searchInput').addEventListener('input', e=>{ recordFilterQuery = e.target.value; $('#recordListArea').innerHTML = renderRecordList(); });
   }
   if(view==='dashboard'){
-    setTimeout(drawCharts, 80);
+    const renderChartsWhenReady = () => requestAnimationFrame(()=> requestAnimationFrame(drawCharts));
+    if(document.fonts && document.fonts.ready){ document.fonts.ready.then(renderChartsWhenReady); }
+    else { setTimeout(renderChartsWhenReady, 200); }
     $('#dashPeriodSelect').addEventListener('change', e=>{ dashboardPeriod = e.target.value; renderView('dashboard'); });
     $('#btnDashRefresh').addEventListener('click', ()=>{
       const btn = $('#btnDashRefresh'); btn.classList.add('spinning'); btn.disabled=true;
@@ -1502,7 +1553,7 @@ function afterRender(view){
   if(view==='settings'){
     $('#btnSaveConfig').addEventListener('click', ()=>{
       google.script.run.withSuccessHandler(res=>{
-        if(res.success) showToast(ic('ok')+' ບັນທຶກການຕັ້ງຄ່າສຳເລັດ');
+        if(res.success){ configDirty = false; showToast(ic('ok')+' ບັນທຶກການຕັ້ງຄ່າສຳເລັດ'); }
         else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
       }).withFailureHandler(onApiFail_).updateDropdownConfig(CONFIG, CURRENT_USER.role);
     });
