@@ -794,6 +794,7 @@ function saveHomeForm(){
 /*** ================= RECORDS LIST ================= ***/
 function recordItemHtml(r){
   const canEdit = CURRENT_USER.role==='admin' || r['ຜູ້ບັນທຶກ(Username)']===CURRENT_USER.username;
+  const staffName = r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)'];
   return `
   <div class="record-item">
     <div style="flex:1;min-width:0;">
@@ -802,7 +803,11 @@ function recordItemHtml(r){
         <span class="badge">${esc(r['ສົນໃຈສິນຄ້າປະເພດໃດ']||r['ສົນໃຈສິນຄ້າປະເພດໃດ']||'-')}</span>
         <span class="badge status">${esc(r['Status ຊື້ຄ້າ']||'-')}</span><br>
         🛍️ ${esc(r['ລູກຄ້າສົນໃຈຊື້ອັນໃດ']||'-')} · ${fmtNum(r['ລາຄາ'])} ${esc(r['ສະກຸນເງິນ']||'')}<br>
-        📅 ${esc(String(r['ວັນທີ']||'').slice(0,10))} · <span style="display:inline-flex;align-items:center;gap:5px;vertical-align:middle;">${avatarHtml(r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)'], photoForStaffName(r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)']), 18)}${esc(r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)']||'-')}</span>
+        📅 ${esc(String(r['ວັນທີ']||'').slice(0,10))}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        ${avatarHtml(staffName, photoForStaffName(staffName), 30)}
+        <span style="font-size:12.5px;font-weight:600;color:var(--text);">${esc(staffName||'-')}</span>
       </div>
     </div>
     ${canEdit ? `
@@ -915,9 +920,9 @@ function staffProgressHtml(dataObj, total){
     const pct = pctOf(count,total);
     const photo = photoForStaffName(label);
     return `<div class="pb-row">
-      <div class="pb-top" style="align-items:center;">
-        <span style="display:flex;align-items:center;gap:8px;">${avatarHtml(label, photo, 26)}${esc(label)}</span>
-        <span class="n">${count} · ${pct}%</span>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="display:flex;align-items:center;gap:10px;">${avatarHtml(label, photo, 40)}<span style="font-size:13.5px;font-weight:700;">${esc(label)}</span></span>
+        <span class="n" style="font-size:12.5px;">${count} · ${pct}%</span>
       </div>
       <div class="pb-track"><div class="pb-fill" style="width:${pct}%;background:${colorFor(i)};"></div></div>
     </div>`;
@@ -1162,13 +1167,14 @@ function loadUsers(){
           </div>
         </div>
         <div class="record-actions">
-          <button class="iconbtn-sm" onclick='openUserModal(${JSON.stringify(u)})'>${ic('edit')}</button>
+          <button class="iconbtn-sm" onclick="openUserModal('${esc(u.username)}')">${ic('edit')}</button>
           ${u.username!=='admin' ? `<button class="iconbtn-sm del" onclick="confirmDeleteUser('${u.username}')">${ic('delete')}</button>` : ''}
         </div>
       </div>`).join('') || emptyHtml('ຍັງບໍ່ມີພະນັກງານ');
   }).withFailureHandler(onApiFail_).getUsers(CURRENT_USER.role);
 }
-function openUserModal(u){
+function openUserModal(username){
+  const u = username ? ALL_USERS.find(x=>x.username===username) : null;
   const editing = !!u;
   $('#modalBox').innerHTML = `
     <div class="modal-head"><h3>${editing?ic('edit')+' ແກ້ໄຂພະນັກງານ':ic('add')+' ເພີ່ມພະນັກງານໃໝ່'}</h3><button class="iconbtn-sm" onclick="closeModal()">${ic('close')}</button></div>
