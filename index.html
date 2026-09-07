@@ -859,6 +859,21 @@ function progressListHtml(dataObj, total){
   }).join('');
 }
 
+function channelLegendHtml(dataObj, total){
+  const entries = Object.entries(dataObj||{}).sort((a,b)=>b[1]-a[1]);
+  if(!entries.length) return `<div class="section-sub" style="margin:0;">ຍັງບໍ່ມີຂໍ້ມູນ</div>`;
+  return entries.map(([label,count],i)=>{
+    const pct = pctOf(count,total);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;${i<entries.length-1?'border-bottom:1px solid var(--border);':''}">
+      <div style="display:flex;align-items:center;gap:9px;min-width:0;">
+        <span style="width:10px;height:10px;border-radius:3px;background:${colorFor(i)};flex-shrink:0;"></span>
+        <span style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(label)}</span>
+      </div>
+      <span style="font-size:13px;font-weight:700;color:var(--muted);flex-shrink:0;margin-left:10px;">${count} · ${pct}%</span>
+    </div>`;
+  }).join('');
+}
+
 function viewDashboard(){
   const filtered = filterRecordsByPeriod(RECORDS, dashboardPeriod);
   DASH_STATS = computeDashboardStats(filtered);
@@ -927,7 +942,13 @@ function viewDashboard(){
   <div class="card">
     <div class="section-title" style="font-size:14.5px;">ຊ່ອງທາງທີ່ລູກຄ້າຮູ້ຈັກ LMG</div>
     <div class="section-sub">ອີງຕາມຈຳນວນລູກຄ້າ ${total} ຄົນ (${PERIOD_LABELS[dashboardPeriod]})</div>
-    ${progressListHtml(DASH_STATS.byChannel, total)}
+    <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+      <div class="donut-wrap" style="width:150px;height:150px;flex-shrink:0;">
+        <canvas id="chartChannel"></canvas>
+        <div class="donut-center"><div class="pct">${total}</div><div class="sub">ທັງໝົດ</div></div>
+      </div>
+      <div style="flex:1;min-width:190px;">${channelLegendHtml(DASH_STATS.byChannel, total)}</div>
+    </div>
   </div>
   <div class="card">
     <div class="section-title" style="font-size:14.5px;">ສະຖານະລູກຄ້າ</div>
@@ -957,6 +978,14 @@ function drawCharts(){
     const rest = Math.max((DASH_STATS.total||0)-closed,0);
     new Chart(closeEl,{ type:'doughnut', data:{ labels:['ຊື້ແລ້ວ','ອື່ນໆ'], datasets:[{ data:[closed,rest||1], backgroundColor:[BRAND.colorAccent,'#efeaf9'], borderWidth:0 }] },
       options:{ responsive:true, maintainAspectRatio:false, cutout:'74%', plugins:{ legend:{display:false}, tooltip:{enabled:true} } } });
+  }
+  const chanEl = document.getElementById('chartChannel');
+  if(chanEl){
+    const entries = Object.entries(DASH_STATS.byChannel||{}).sort((a,b)=>b[1]-a[1]);
+    new Chart(chanEl,{ type:'doughnut',
+      data:{ labels: entries.map(e=>e[0]), datasets:[{ data: entries.map(e=>e[1]), backgroundColor: entries.map((_,i)=>colorFor(i)), borderWidth:0 }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'68%', plugins:{ legend:{display:false}, tooltip:{enabled:true} } }
+    });
   }
   const catEl = document.getElementById('chartCategory');
   if(catEl){
