@@ -488,6 +488,7 @@ let reportFilterQuery = '';
 let brandingDraft = null;
 let dashboardPeriod = 'all';
 let DASH_STATS = {};
+let STAFF_LIST = [];
 
 /*** ================= HELPERS ================= ***/
 function $(sel){return document.querySelector(sel);}
@@ -510,6 +511,35 @@ function fmtNum(n){ return (Number(n)||0).toLocaleString('en-US'); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 const CHART_COLORS = ['#7c3aed','#d4a93e','#16a34a','#dc2626','#0891b2','#db2777','#65a30d','#4c1d95','#ea580c','#0ea5e9'];
 function colorFor(i){ return CHART_COLORS[i % CHART_COLORS.length]; }
+const AVATAR_COLORS = ['#7c3aed','#0891b2','#d4a93e','#16a34a','#db2777','#ea580c','#4c1d95','#0ea5e9','#65a30d','#dc2626'];
+function avatarColorFor(name){
+  const str = String(name||'?');
+  let hash = 0;
+  for(let i=0;i<str.length;i++) hash = str.charCodeAt(i) + ((hash<<5)-hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+function avatarHtml(name, photoUrl, size){
+  size = size || 34;
+  if(photoUrl){
+    return `<img src="${esc(photoUrl)}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0;">`;
+  }
+  const initial = String(name||'?').trim().charAt(0).toUpperCase() || '?';
+  return `<span style="width:${size}px;height:${size}px;border-radius:50%;background:${avatarColorFor(name)};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:${Math.round(size*0.42)}px;flex-shrink:0;">${esc(initial)}</span>`;
+}
+let STAFF_DIRECTORY = {};
+function buildStaffDirectory(users){
+  STAFF_DIRECTORY = {};
+  (users||[]).forEach(u=>{
+    const nameKey = String(u.fullName||'').trim().toLowerCase();
+    const userKey = String(u.username||'').trim().toLowerCase();
+    if(nameKey) STAFF_DIRECTORY[nameKey] = { photo: u.photo, username: u.username };
+    if(userKey) STAFF_DIRECTORY[userKey] = { photo: u.photo, username: u.username };
+  });
+}
+function photoForStaffName(name){
+  const key = String(name||'').trim().toLowerCase();
+  return (STAFF_DIRECTORY[key] && STAFF_DIRECTORY[key].photo) || '';
+}
 const PERIOD_LABELS = { all:'ທັງໝົດ', today:'ມື້ນີ້', '7d':'7 ວັນຫຼ້າສຸດ', month:'ເດືອນນີ້', lastmonth:'ເດືອນແລ້ວ' };
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
@@ -609,7 +639,7 @@ function bootApp(){
     $('#loadingScreen').style.display='none';
     $('#app').style.display='block';
     $('#drawerName').textContent = CURRENT_USER.fullName || CURRENT_USER.username;
-    $('#drawerAvatar').textContent = (CURRENT_USER.fullName||CURRENT_USER.username||'?').trim().charAt(0).toUpperCase();
+    $('#drawerAvatar').innerHTML = avatarHtml(CURRENT_USER.fullName||CURRENT_USER.username, CURRENT_USER.photo, 44);
     $('#drawerRole').textContent = CURRENT_USER.role==='admin' ? 'ຜູ້ດູແລລະບົບ (Admin)' : 'ພະນັກງານ';
     if(CURRENT_USER.role==='admin'){
       $('#adminSep').style.display='block';
@@ -617,7 +647,7 @@ function bootApp(){
       $('#navSettings').style.display='flex';
       $('#navBranding').style.display='flex';
     }
-    renderView('home');
+    refreshStaffList(()=> renderView('home'));
   }).withFailureHandler(err=>{
     $('#loadingScreen').style.display='none';
     alert('ໂຫລດຂໍ້ມູນລົ້ມເຫລວ: '+err.message+'\nກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່');
@@ -631,8 +661,16 @@ function refreshAll(cb){
   google.script.run.withSuccessHandler(data=>{
     CONFIG = data.config; RECORDS = data.records; DASHBOARD = data.dashboard;
     applyBranding(CONFIG.branding);
-    if(cb) cb();
+    refreshStaffList(()=>{ if(cb) cb(); });
   }).bootstrap(CURRENT_USER.username, CURRENT_USER.role);
+}
+
+function refreshStaffList(cb){
+  google.script.run.withSuccessHandler(staff=>{
+    STAFF_LIST = staff || [];
+    buildStaffDirectory(STAFF_LIST);
+    if(cb) cb();
+  }).withFailureHandler(()=>{ if(cb) cb(); }).getStaffList();
 }
 
 /*** ================= DRAWER ================= ***/
@@ -692,13 +730,24 @@ function viewHome(){
 }
 
 /*** ================= RECORD FORM (shared) ================= ***/
+function staffOptionsHtml(selected){
+  const names = Array.from(new Set((STAFF_LIST||[]).map(u=>u.fullName).filter(Boolean)));
+  let extra = '';
+  if(selected && !names.includes(selected)){
+    extra = `<option value="${esc(selected)}" selected>${esc(selected)} (ຊື່ເກົ່າ)</option>`;
+  }
+  const optsHtml = names.map(n=>`<option value="${esc(n)}" ${n===selected?'selected':''}>${esc(n)}</option>`).join('');
+  return extra + optsHtml;
+}
+
 function recordFormHtml(r){
   r = r || {};
   const opt = (arr, val) => arr.map(v=>`<option value="${esc(v)}" ${v===val?'selected':''}>${esc(v)}</option>`).join('');
+  const staffSelected = r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||CURRENT_USER.fullName;
   return `
   <div class="form-grid">
     <div class="field"><label>ວັນທີ</label><input type="date" id="f_date" value="${r['ວັນທີ']? String(r['ວັນທີ']).slice(0,10) : new Date().toISOString().slice(0,10)}"></div>
-    <div class="field"><label>ຊື່ພະນັກງານຮັບລູກຄ້າ</label><input type="text" id="f_staffName" placeholder="ຊື່ພະນັກງານ" value="${esc(r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||CURRENT_USER.fullName)}"></div>
+    <div class="field"><label>ຊື່ພະນັກງານຮັບລູກຄ້າ</label><select id="f_staffName">${staffOptionsHtml(staffSelected)}</select></div>
     <div class="field"><label>ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ</label><input type="text" id="f_customerName" placeholder="ຊື່ລູກຄ້າ" value="${esc(r['ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ'])}"></div>
     <div class="field"><label>ເບີໂທຕິດຕໍ່</label><input type="text" id="f_phone" placeholder="020xxxxxxxx" value="${esc(r['ເບີໂທຕິດຕໍ່'])}"></div>
     <div class="field"><label>ເລກທີ Invoice</label><input type="text" id="f_invoice" placeholder="ຖ້າມີ" value="${esc(r['ເລກທີ Invoice'])}"></div>
@@ -753,7 +802,7 @@ function recordItemHtml(r){
         <span class="badge">${esc(r['ສົນໃຈສິນຄ້າປະເພດໃດ']||r['ສົນໃຈສິນຄ້າປະເພດໃດ']||'-')}</span>
         <span class="badge status">${esc(r['Status ຊື້ຄ້າ']||'-')}</span><br>
         🛍️ ${esc(r['ລູກຄ້າສົນໃຈຊື້ອັນໃດ']||'-')} · ${fmtNum(r['ລາຄາ'])} ${esc(r['ສະກຸນເງິນ']||'')}<br>
-        📅 ${esc(String(r['ວັນທີ']||'').slice(0,10))} · 👤 ${esc(r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)']||'-')}
+        📅 ${esc(String(r['ວັນທີ']||'').slice(0,10))} · <span style="display:inline-flex;align-items:center;gap:5px;vertical-align:middle;">${avatarHtml(r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)'], photoForStaffName(r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)']), 18)}${esc(r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)']||'-')}</span>
       </div>
     </div>
     ${canEdit ? `
@@ -859,6 +908,22 @@ function progressListHtml(dataObj, total){
   }).join('');
 }
 
+function staffProgressHtml(dataObj, total){
+  const entries = Object.entries(dataObj||{}).sort((a,b)=>b[1]-a[1]);
+  if(!entries.length) return `<div class="section-sub" style="margin:0;">ຍັງບໍ່ມີຂໍ້ມູນ</div>`;
+  return entries.map(([label,count],i)=>{
+    const pct = pctOf(count,total);
+    const photo = photoForStaffName(label);
+    return `<div class="pb-row">
+      <div class="pb-top" style="align-items:center;">
+        <span style="display:flex;align-items:center;gap:8px;">${avatarHtml(label, photo, 26)}${esc(label)}</span>
+        <span class="n">${count} · ${pct}%</span>
+      </div>
+      <div class="pb-track"><div class="pb-fill" style="width:${pct}%;background:${colorFor(i)};"></div></div>
+    </div>`;
+  }).join('');
+}
+
 function channelLegendHtml(dataObj, total){
   const entries = Object.entries(dataObj||{}).sort((a,b)=>b[1]-a[1]);
   if(!entries.length) return `<div class="section-sub" style="margin:0;">ຍັງບໍ່ມີຂໍ້ມູນ</div>`;
@@ -955,7 +1020,7 @@ function viewDashboard(){
     <div class="section-sub">ອີງຕາມຈຳນວນລູກຄ້າ ${total} ຄົນ (${PERIOD_LABELS[dashboardPeriod]})</div>
     ${progressListHtml(DASH_STATS.byStatus, total)}
   </div>
-  ${CURRENT_USER.role==='admin' ? `<div class="card"><div class="section-title" style="font-size:14.5px;">ຈຳນວນລູກຄ້າຕໍ່ພະນັກງານ</div><div class="section-sub">ໃຜຮັບລູກຄ້າຫຼາຍທີ່ສຸດ (${PERIOD_LABELS[dashboardPeriod]})</div>${progressListHtml(DASH_STATS.byStaff, total)}</div>` : ''}
+  ${CURRENT_USER.role==='admin' ? `<div class="card"><div class="section-title" style="font-size:14.5px;">ຈຳນວນລູກຄ້າຕໍ່ພະນັກງານ</div><div class="section-sub">ໃຜຮັບລູກຄ້າຫຼາຍທີ່ສຸດ (${PERIOD_LABELS[dashboardPeriod]})</div>${staffProgressHtml(DASH_STATS.byStaff, total)}</div>` : ''}
   `;
 }
 
@@ -1084,13 +1149,17 @@ function viewUsers(){
 function loadUsers(){
   google.script.run.withSuccessHandler(list=>{
     ALL_USERS = list;
+    buildStaffDirectory(list);
     const area = $('#userListArea');
     if(!area) return;
     area.innerHTML = list.map(u=>`
       <div class="record-item">
-        <div>
-          <div class="rname">${esc(u.fullName)} <span class="badge">${u.role==='admin'?'Admin':'ພະນັກງານ'}</span></div>
-          <div class="rmeta">Username: ${esc(u.username)} ${u.department?('· 🏢 '+esc(u.department)):''} · ${u.active===false||u.active==='FALSE' ? '🔴 ປິດໃຊ້ງານ' : '🟢 ໃຊ້ງານຢູ່'}</div>
+        <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+          ${avatarHtml(u.fullName, u.photo, 40)}
+          <div style="min-width:0;">
+            <div class="rname">${esc(u.fullName)} <span class="badge">${u.role==='admin'?'Admin':'ພະນັກງານ'}</span></div>
+            <div class="rmeta">Username: ${esc(u.username)} ${u.department?('· 🏢 '+esc(u.department)):''} · ${u.active===false||u.active==='FALSE' ? '🔴 ປິດໃຊ້ງານ' : '🟢 ໃຊ້ງານຢູ່'}</div>
+          </div>
         </div>
         <div class="record-actions">
           <button class="iconbtn-sm" onclick='openUserModal(${JSON.stringify(u)})'>${ic('edit')}</button>
@@ -1112,23 +1181,50 @@ function openUserModal(u){
       </select>
     </div>
     <div class="field"><label>ພະແນກ</label><input type="text" id="u_department" placeholder="ເຊັ່ນ: ຝ່າຍຂາຍ" value="${editing?esc(u.department||''):''}"></div>
+    <div class="field">
+      <label>ຮູບໂປຣໄຟລ໌ພະນັກງານ</label>
+      <div class="logo-upload">
+        <div class="logo-preview" id="userPhotoPreview" style="border-radius:50%;">${editing && u.photo ? `<img src="${esc(u.photo)}">` : esc((editing&&u.fullName?u.fullName:'?').trim().charAt(0).toUpperCase())}</div>
+        <div style="flex:1;">
+          <input type="file" id="u_photoFile" accept="image/*">
+          <input type="hidden" id="u_photo" value="${editing?esc(u.photo||''):''}">
+        </div>
+      </div>
+    </div>
     ${editing?`<div class="field"><label>ສະຖານະ</label><select id="u_active"><option value="true" ${u.active!==false&&u.active!=='FALSE'?'selected':''}>ໃຊ້ງານ</option><option value="false" ${u.active===false||u.active==='FALSE'?'selected':''}>ปิดໃຊ້ງານ</option></select></div>`:''}
     <div class="field"><label>${editing?'ລະຫັດຜ່ານໃໝ່ (ຢ່າງໜ້ອຍ 6 ໂຕ, ປ່ອຍວ່າງຖ້າບໍ່ປ່ຽນ)':'ລະຫັດຜ່ານ (ຢ່າງໜ້ອຍ 6 ໂຕ)'}</label><input type="password" id="u_password" minlength="6"></div>
     <button class="btn btn-primary" style="margin-top:6px;" id="btnSaveUser">${ic('save')} ບັນທຶກ</button>
   `;
   $('#modalOverlay').classList.add('show');
+  const userPhotoFile = $('#u_photoFile');
+  if(userPhotoFile){
+    userPhotoFile.addEventListener('change', e=>{
+      const file = e.target.files[0]; if(!file) return;
+      if(!file.type.startsWith('image/')){ showToast(ic('warn')+' ກະລຸນາເລືອກໄຟລ໌ຮູບພາບ'); return; }
+      compressImageToDataUrl_(file, 160, 160, 0.75).then(dataUrl=>{
+        if(dataUrl.length > 40000){ showToast(ic('err')+' ຮູບໃຫຍ່ເກີນໄປ ກະລຸນາໃຊ້ຮູບນ້ອຍກວ່ານີ້'); return; }
+        $('#u_photo').value = dataUrl;
+        $('#userPhotoPreview').innerHTML = `<img src="${dataUrl}">`;
+        showToast(ic('ok')+' ອັບໂຫລດຮູບສຳເລັດ');
+      }).catch(()=>{ showToast(ic('err')+' ບໍ່ສາມາດອ່ານໄຟລ໌ຮູບໄດ້'); });
+    });
+  }
   $('#btnSaveUser').addEventListener('click', ()=>{
     const payload = {
       username: $('#u_username').value.trim(), fullName: $('#u_fullName').value.trim(),
       role: $('#u_role').value, password: $('#u_password').value,
-      department: $('#u_department').value.trim()
+      department: $('#u_department').value.trim(), photo: $('#u_photo').value
     };
     if(editing) payload.active = $('#u_active').value==='true';
     if(!payload.username || !payload.fullName || (!editing && !payload.password)){ showToast(ic('warn')+' ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບ'); return; }
     const fn = editing ? 'updateUser' : 'addUser';
     google.script.run.withSuccessHandler(res=>{
-      if(res.success){ showToast(ic('ok')+' ບັນທຶກສຳເລັດ'); closeModal(); loadUsers(); }
-      else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
+      if(res.success){
+        showToast(ic('ok')+' ບັນທຶກສຳເລັດ'); closeModal();
+        google.script.run.withSuccessHandler(users=>{ ALL_USERS=users; buildStaffDirectory(users); loadUsers(); })
+          .withFailureHandler(loadUsers).getUsers(CURRENT_USER.role);
+        refreshStaffList();
+      } else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
     }).withFailureHandler(onApiFail_)[fn](payload, CURRENT_USER.role);
   });
 }
@@ -1143,7 +1239,7 @@ function confirmDeleteUser(username){
   $('#modalOverlay').classList.add('show');
   $('#btnConfirmDelUser').addEventListener('click', ()=>{
     google.script.run.withSuccessHandler(res=>{
-      if(res.success){ showToast('🗑️ ລຶບແລ້ວ'); closeModal(); loadUsers(); }
+      if(res.success){ showToast('🗑️ ລຶບແລ້ວ'); closeModal(); loadUsers(); refreshStaffList(); }
       else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
     }).withFailureHandler(onApiFail_).deleteUser(username, CURRENT_USER.role);
   });
