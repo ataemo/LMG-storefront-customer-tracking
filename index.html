@@ -265,6 +265,12 @@ a{text-decoration:none;color:inherit;}
 .btn-refresh:active{background:#f2ecff;}
 .btn-refresh.spinning .ic-spin{display:inline-block;animation:spin .8s linear infinite;}
 .growth-pill{padding:8px 14px;border-radius:20px;font-size:12px;font-weight:800;}
+.year-tabs{display:flex;gap:6px;flex-wrap:wrap;}
+.year-tab{padding:8px 14px;border-radius:20px;font-size:12.5px;font-weight:700;background:#fff;border:1.5px solid var(--border);color:var(--text);}
+.year-tab.active{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;border-color:transparent;}
+.custom-range-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.custom-range-row input[type=date]{padding:9px 12px;border:1.5px solid var(--border);border-radius:12px;background:#faf9ff;font-size:13px;}
+.custom-range-row .to-label{font-size:12.5px;color:var(--muted);font-weight:600;}
 
 /* ---------- Branding / Appearance settings ---------- */
 .swatch-row{display:flex;gap:10px;flex-wrap:wrap;}
@@ -500,8 +506,13 @@ let currentView = 'home';
 let editingId = null;
 let recordFilterQuery = '';
 let reportFilterQuery = '';
+let reportCustomFrom = '';
+let reportCustomTo = '';
 let brandingDraft = null;
 let dashboardPeriod = 'all';
+let dashboardYear = 'all';
+let dashboardCustomFrom = '';
+let dashboardCustomTo = '';
 let configDirty = false;
 let DASH_STATS = {};
 let STAFF_LIST = [];
@@ -568,20 +579,41 @@ function photoForStaffName(name){
   const key = String(name||'').trim().toLowerCase();
   return (STAFF_DIRECTORY[key] && STAFF_DIRECTORY[key].photo) || '';
 }
-const PERIOD_LABELS = { all:'ທັງໝົດ', today:'ມື້ນີ້', '7d':'7 ວັນຫຼ້າສຸດ', month:'ເດືອນນີ້', lastmonth:'ເດືອນແລ້ວ' };
+const PERIOD_LABELS = { all:'ທັງໝົດ', today:'ມື້ນີ້', '7d':'7 ວັນຫຼ້າສຸດ', month:'ເດືອນນີ້', lastmonth:'ເດືອນແລ້ວ', custom:'📅 ກຳນົດເອງ (ຈາກ-ຫາ)' };
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function addDays_(dateStr, delta){ const d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+delta); return d.toISOString().slice(0,10); }
 function monthKeyOf_(dateStr){ return String(dateStr||'').slice(0,7); }
 function shiftMonthKey_(ym, delta){ const [y,m]=ym.split('-').map(Number); const d=new Date(y, m-1+delta, 1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 
-function filterRecordsByPeriod(records, period){
+function filterRecordsByPeriod(records, period, customFrom, customTo){
   const today = todayStr();
+  if(period==='custom'){
+    let list = records;
+    if(customFrom) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) >= customFrom);
+    if(customTo) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) <= customTo);
+    return list;
+  }
   if(period==='today') return records.filter(r=> String(r['ວັນທີ']).slice(0,10)===today);
   if(period==='7d'){ const from = addDays_(today,-6); return records.filter(r=> String(r['ວັນທີ']).slice(0,10) >= from); }
   if(period==='month'){ const ym = monthKeyOf_(today); return records.filter(r=> monthKeyOf_(r['ວັນທີ'])===ym); }
   if(period==='lastmonth'){ const ym = shiftMonthKey_(monthKeyOf_(today),-1); return records.filter(r=> monthKeyOf_(r['ວັນທີ'])===ym); }
   return records;
+}
+
+// ★ ໃໝ່: ຫາປີທັງໝົດທີ່ມີຢູ່ໃນຂໍ້ມູນ (ໃຊ້ສ້າງແທັບປີອັດຕະໂນມັດ)
+function getAvailableYears(){
+  const years = new Set();
+  RECORDS.forEach(r=>{ const y = String(r['ວັນທີ']||'').slice(0,4); if(y && y.length===4) years.add(y); });
+  years.add(String(new Date().getFullYear())); // ໃຫ້ປີປັດຈຸບັນສະແດງສະເໝີ ເຖິງຈະຍັງບໍ່ມີຂໍ້ມູນ
+  return Array.from(years).sort((a,b)=> b.localeCompare(a)); // ໃໝ່ສຸດຢູ່ໜ້າ
+}
+function filterRecordsByYear(records, year){
+  if(!year || year==='all') return records;
+  return records.filter(r=> String(r['ວັນທີ']||'').slice(0,4) === year);
+}
+function periodLabelText(){
+  return (dashboardYear==='all' ? '' : dashboardYear+' · ') + PERIOD_LABELS[dashboardPeriod];
 }
 
 function computeDashboardStats(records){
@@ -982,7 +1014,9 @@ function channelLegendHtml(dataObj, total){
 }
 
 function viewDashboard(){
-  const filtered = filterRecordsByPeriod(RECORDS, dashboardPeriod);
+  const years = getAvailableYears();
+  let filtered = filterRecordsByYear(RECORDS, dashboardYear);
+  filtered = filterRecordsByPeriod(filtered, dashboardPeriod, dashboardCustomFrom, dashboardCustomTo);
   DASH_STATS = computeDashboardStats(filtered);
   const total = DASH_STATS.total||0;
   const revStr = Object.entries(DASH_STATS.revenueByCurrency||{}).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
@@ -998,18 +1032,32 @@ function viewDashboard(){
     ? (weekDelta>=0 ? `📈 ເພີ່ມຂຶ້ນ ${weekDelta} ລູກຄ້າ` : `📉 ຫຼຸດລົງ ${Math.abs(weekDelta)} ລູກຄ້າ`) + ' ໃນຮອບ 7 ວັນ'
     : 'ຍັງບໍ່ພຽງພໍຂໍ້ມູນ';
   const closedCount = (DASH_STATS.byStatus&&DASH_STATS.byStatus['ຊື້ແລ້ວ'])||0;
-  const growth = computeMonthGrowth(RECORDS);
+  const growth = computeMonthGrowth(filterRecordsByYear(RECORDS, dashboardYear));
   const growthUp = growth.pct>=0;
 
   return `
-  <div class="dash-toolbar">
-    <select id="dashPeriodSelect">
-      ${Object.entries(PERIOD_LABELS).map(([k,label])=>`<option value="${k}" ${dashboardPeriod===k?'selected':''}>${label}</option>`).join('')}
-    </select>
-    <button class="btn-refresh" id="btnDashRefresh"><span class="ic-spin">🔄</span> ໂຫລດຂໍ້ມູນໃໝ່</button>
-    <span class="growth-pill" style="background:${growthUp?'rgba(22,163,74,.14)':'rgba(220,38,38,.14)'};color:${growthUp?'#15803d':'#b91c1c'};">
-      ${growthUp?'📈':'📉'} ${growth.pct>=0?'+':''}${growth.pct}% ທຽບເດືອນແລ້ວ (${growth.curCount} vs ${growth.prevCount})
-    </span>
+  <div class="dash-toolbar" style="flex-direction:column;align-items:stretch;">
+    <div class="year-tabs" id="yearTabs">
+      <button class="year-tab ${dashboardYear==='all'?'active':''}" data-year="all">🗂️ ທຸກປີ</button>
+      ${years.map(y=>`<button class="year-tab ${dashboardYear===y?'active':''}" data-year="${y}">${y}</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <select id="dashPeriodSelect">
+        ${Object.entries(PERIOD_LABELS).map(([k,label])=>`<option value="${k}" ${dashboardPeriod===k?'selected':''}>${label}</option>`).join('')}
+      </select>
+      ${dashboardPeriod==='custom' ? `
+      <div class="custom-range-row">
+        <input type="date" id="dashCustomFrom" value="${esc(dashboardCustomFrom)}">
+        <span class="to-label">ຫາ</span>
+        <input type="date" id="dashCustomTo" value="${esc(dashboardCustomTo)}">
+        <button class="btn-refresh" id="btnApplyCustomRange">${ic('ok')} ນຳໃຊ້</button>
+      </div>` : ''}
+      <button class="btn-refresh" id="btnDashRefresh"><span class="ic-spin">🔄</span> ໂຫລດຂໍ້ມູນໃໝ່</button>
+      <button class="btn-refresh" id="btnClearDashFilter">${ic('close')} ລ້າງຕົວກອງ</button>
+      <span class="growth-pill" style="background:${growthUp?'rgba(22,163,74,.14)':'rgba(220,38,38,.14)'};color:${growthUp?'#15803d':'#b91c1c'};">
+        ${growthUp?'📈':'📉'} ${growth.pct>=0?'+':''}${growth.pct}% ທຽບເດືອນແລ້ວ (${growth.curCount} vs ${growth.prevCount})
+      </span>
+    </div>
   </div>
 
   <div class="card hero">
@@ -1158,13 +1206,22 @@ function viewReport(){
     </div>
     <input type="text" id="reportSearch" placeholder="${ic('search')} ຄົ້ນຫາໃນຕາຕະລາງ (ຊື່, ເບີໂທ, ສິນຄ້າ...)" value="${esc(reportFilterQuery)}"
       style="margin-bottom:12px;width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:14px;font-size:14px;background:#faf9ff;">
+    <div class="custom-range-row" style="margin-bottom:12px;">
+      <input type="date" id="reportFrom" value="${esc(reportCustomFrom)}">
+      <span class="to-label">ຫາ</span>
+      <input type="date" id="reportTo" value="${esc(reportCustomTo)}">
+      <button class="btn-refresh" id="btnApplyReportRange">${ic('ok')} ນຳໃຊ້</button>
+      <button class="btn-refresh" id="btnClearReportRange">${ic('close')} ລ້າງ</button>
+    </div>
     <div id="reportTableArea">${renderReportTable()}</div>
   </div>`;
 }
 
 function renderReportTable(){
-  const q = reportFilterQuery.toLowerCase().trim();
   let list = RECORDS;
+  if(reportCustomFrom) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) >= reportCustomFrom);
+  if(reportCustomTo) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) <= reportCustomTo);
+  const q = reportFilterQuery.toLowerCase().trim();
   if(q){ list = list.filter(r => REPORT_COLS.some(c => String(r[c.key]||'').toLowerCase().includes(q))); }
   const countLine = `<div class="section-sub" style="margin:0 0 10px;">ສະແດງ ${list.length} / ${RECORDS.length} ລາຍການ</div>`;
   if(!list.length) return countLine + emptyHtml('ບໍ່ພົບຂໍ້ມູນ');
@@ -1180,8 +1237,10 @@ function formatReportCell(key, val){
 }
 
 function exportCSV(){
-  const q = reportFilterQuery.toLowerCase().trim();
   let list = RECORDS;
+  if(reportCustomFrom) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) >= reportCustomFrom);
+  if(reportCustomTo) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) <= reportCustomTo);
+  const q = reportFilterQuery.toLowerCase().trim();
   if(q){ list = list.filter(r => REPORT_COLS.some(c => String(r[c.key]||'').toLowerCase().includes(q))); }
   const rows = [REPORT_COLS.map(c=>c.label)];
   list.forEach(r=> rows.push(REPORT_COLS.map(c=> r[c.key]!=null ? String(r[c.key]).replace(/"/g,'""') : '')));
@@ -1558,13 +1617,52 @@ function afterRender(view){
     if(document.fonts && document.fonts.ready){ document.fonts.ready.then(renderChartsWhenReady); }
     else { setTimeout(renderChartsWhenReady, 200); }
     $('#dashPeriodSelect').addEventListener('change', e=>{ dashboardPeriod = e.target.value; renderView('dashboard'); });
+    $all('.year-tab').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ dashboardYear = btn.dataset.year; renderView('dashboard'); });
+    });
+    const btnApplyRange = $('#btnApplyCustomRange');
+    if(btnApplyRange){
+      btnApplyRange.addEventListener('click', ()=>{
+        dashboardCustomFrom = $('#dashCustomFrom').value;
+        dashboardCustomTo = $('#dashCustomTo').value;
+        if(dashboardCustomFrom && dashboardCustomTo && dashboardCustomFrom > dashboardCustomTo){
+          showToast(ic('warn')+' ວັນທີ "ຈາກ" ຕ້ອງບໍ່ຢູ່ຫຼັງວັນທີ "ຫາ"'); return;
+        }
+        renderView('dashboard');
+      });
+    }
     $('#btnDashRefresh').addEventListener('click', ()=>{
       const btn = $('#btnDashRefresh'); btn.classList.add('spinning'); btn.disabled=true;
       refreshAll(()=>{ btn.classList.remove('spinning'); btn.disabled=false; showToast(ic('ok')+' ໂຫລດຂໍ້ມູນໃໝ່ແລ້ວ'); renderView('dashboard'); });
     });
+    const btnClearDash = $('#btnClearDashFilter');
+    if(btnClearDash){
+      btnClearDash.addEventListener('click', ()=>{
+        dashboardYear = 'all'; dashboardPeriod = 'all'; dashboardCustomFrom=''; dashboardCustomTo='';
+        showToast(ic('ok')+' ລ້າງຕົວກອງແລ້ວ'); renderView('dashboard');
+      });
+    }
   }
   if(view==='report'){
     $('#reportSearch').addEventListener('input', e=>{ reportFilterQuery = e.target.value; $('#reportTableArea').innerHTML = renderReportTable(); });
+    const btnApplyR = $('#btnApplyReportRange');
+    if(btnApplyR){
+      btnApplyR.addEventListener('click', ()=>{
+        reportCustomFrom = $('#reportFrom').value;
+        reportCustomTo = $('#reportTo').value;
+        if(reportCustomFrom && reportCustomTo && reportCustomFrom > reportCustomTo){
+          showToast(ic('warn')+' ວັນທີ "ຈາກ" ຕ້ອງບໍ່ຢູ່ຫຼັງວັນທີ "ຫາ"'); return;
+        }
+        $('#reportTableArea').innerHTML = renderReportTable();
+      });
+    }
+    const btnClearR = $('#btnClearReportRange');
+    if(btnClearR){
+      btnClearR.addEventListener('click', ()=>{
+        reportCustomFrom=''; reportCustomTo='';
+        renderView('report');
+      });
+    }
   }
   if(view==='settings'){
     $('#btnSaveConfig').addEventListener('click', ()=>{
