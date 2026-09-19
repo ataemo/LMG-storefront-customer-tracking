@@ -785,7 +785,7 @@ function recordFormHtml(r){
     <div class="field"><label>ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ</label><input type="text" id="f_customerName" placeholder="ຊື່ລູກຄ້າ" value="${esc(r['ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ'])}"></div>
     <div class="field"><label>ເບີໂທຕິດຕໍ່</label><input type="text" id="f_phone" placeholder="020xxxxxxxx" value="${esc(r['ເບີໂທຕິດຕໍ່'])}"></div>
     <div class="field"><label>ເລກທີ Invoice</label><input type="text" id="f_invoice" placeholder="ຖ້າມີ" value="${esc(r['ເລກທີ Invoice'])}"></div>
-    <div class="field"><label>Follow up</label><input type="text" id="f_followUp" placeholder="ສະຖານະຕິດຕາມ" value="${esc(r['Follow up'])}"></div>
+    <div class="field"><label>Follow up</label><select id="f_followUp">${opt(CONFIG.followUp, r['Follow up'])}</select></div>
     <div class="field"><label>ຮູ້ຈັກ LMG ທາງໃດ</label><select id="f_channel">${opt(CONFIG.channel, r['ຮູ້ຈັກ LMG ທາງໃດ'])}</select></div>
     <div class="field"><label>ສົນໃຈສິນຄ້າປະເພດໃດ</label><select id="f_category">${opt(CONFIG.category, r['ສົນໃຈສິນຄ້າປະເພດໃດ'])}</select></div>
     <div class="field full"><label>ລູກຄ້າສົນໃຈຊື້ອັນໃດ</label><input type="text" id="f_product" placeholder="ຊື່ສິນຄ້າ" value="${esc(r['ລູກຄ້າສົນໃຈຊື້ອັນໃດ'])}"></div>
@@ -1332,6 +1332,7 @@ function viewSettings(){
   ${grp('ຮູ້ຈັກ LMG ທາງໃດ (ຊ່ອງທາງ)','channel')}
   ${grp('ປະເພດສິນຄ້າ','category')}
   ${grp('Status ຊື້ຄ້າ','status')}
+  ${grp('Follow up (ສະຖານະຕິດຕາມ)','followUp')}
   ${grp('ສະກຸນເງິນ','currency')}
   <button class="btn btn-primary" id="btnSaveConfig">${ic('save')} ບັນທຶກການຕັ້ງຄ່າ</button>
   `;
