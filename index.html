@@ -847,7 +847,6 @@ function recordFormHtml(r){
     <div class="field"><label>ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ</label><input type="text" id="f_customerName" placeholder="ຊື່ລູກຄ້າ" value="${esc(r['ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ'])}"></div>
     <div class="field"><label>ເບີໂທຕິດຕໍ່</label><input type="text" id="f_phone" placeholder="020xxxxxxxx" value="${esc(r['ເບີໂທຕິດຕໍ່'])}"></div>
     <div class="field"><label>ເລກທີ Invoice</label><input type="text" id="f_invoice" placeholder="ຖ້າມີ" value="${esc(r['ເລກທີ Invoice'])}"></div>
-    <div class="field"><label>Follow up</label><select id="f_followUp">${opt(CONFIG.followUp, r['Follow up'])}</select></div>
     <div class="field"><label>ຮູ້ຈັກ LMG ທາງໃດ</label><select id="f_channel">${opt(CONFIG.channel, r['ຮູ້ຈັກ LMG ທາງໃດ'])}</select></div>
     <div class="field"><label>ສົນໃຈສິນຄ້າປະເພດໃດ</label><select id="f_category">${opt(CONFIG.category, r['ສົນໃຈສິນຄ້າປະເພດໃດ'])}</select></div>
     <div class="field"><label>ຍີ່ຫໍ້ (Brand)</label><select id="f_brand"><option value="">-- ເລືອກຍີ່ຫໍ້ --</option></select></div>
@@ -866,7 +865,7 @@ function recordFormHtml(r){
 function collectFormPayload(){
   return {
     date: $('#f_date').value, staffName: $('#f_staffName').value, customerName: $('#f_customerName').value,
-    phone: $('#f_phone').value, invoice: $('#f_invoice').value, followUp: $('#f_followUp').value,
+    phone: $('#f_phone').value, invoice: $('#f_invoice').value, followUp: '',
     channel: $('#f_channel').value, category: $('#f_category').value, product: $('#f_product').value,
     qty: Number($('#f_qty').value)||0, currency: $('#f_currency').value, price: Number($('#f_price').value)||0,
     status: $('#f_status').value, salesStaff: $('#f_salesStaff').value, action: $('#f_action').value, note: $('#f_note').value
@@ -1211,7 +1210,6 @@ const REPORT_COLS = [
   {key:'Timestamp', label:'Timestamp'},
   {key:'ວັນທີ', label:'ວັນທີ'},
   {key:'ຊື່ພະນັກງານຮັບລູກຄ້າ', label:'ຊື່ພະນັກງານຮັບລູກຄ້າ'},
-  {key:'Follow up', label:'Follow up'},
   {key:'ເລກທີ Invoice', label:'ເລກທີ Invoice'},
   {key:'ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ', label:'ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ'},
   {key:'ເບີໂທຕິດຕໍ່', label:'ເບີໂທຕິດຕໍ່'},
@@ -1424,7 +1422,6 @@ function viewSettings(){
   ${grp('ຮູ້ຈັກ LMG ທາງໃດ (ຊ່ອງທາງ)','channel')}
   ${grp('ປະເພດສິນຄ້າ','category')}
   ${grp('Status ຊື້ຄ້າ','status')}
-  ${grp('Follow up (ສະຖານະຕິດຕາມ)','followUp')}
   ${grp('ສະກຸນເງິນ','currency')}
   <button class="btn btn-primary" id="btnSaveConfig">${ic('save')} ບັນທຶກການຕັ້ງຄ່າ</button>
   `;
