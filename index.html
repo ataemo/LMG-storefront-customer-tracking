@@ -289,6 +289,8 @@ a{text-decoration:none;color:inherit;}
 .font-choice-row{display:flex;gap:10px;flex-wrap:wrap;}
 .font-choice{flex:1;min-width:140px;border:1.5px solid var(--border);border-radius:13px;padding:12px;text-align:center;font-size:15px;font-weight:700;background:#faf9ff;}
 .font-choice.active{border-color:var(--primary-light);background:#f2ecff;color:var(--primary-dark);}
+.brand-box{border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:#faf9ff;}
+.brand-box-head{display:flex;justify-content:space-between;align-items:center;}
 
 /* Desktop enhancements */
 @media(min-width:900px){
@@ -373,6 +375,7 @@ a{text-decoration:none;color:inherit;}
     <div class="drawer-item" data-view="users" id="navUsers" style="display:none;"><span class="ic" data-icon="users">👥</span> ຈັດການພະນັກງານ</div>
     <div class="drawer-item" data-view="settings" id="navSettings" style="display:none;"><span class="ic" data-icon="settings">⚙️</span> ຕັ້ງຄ່າຕົວເລືອກ</div>
     <div class="drawer-item" data-view="branding" id="navBranding" style="display:none;"><span class="ic" data-icon="branding">🎨</span> ຕົກແຕ່ງແອັບ</div>
+    <div class="drawer-item" data-view="producttree" id="navProductTree" style="display:none;">📦 ຈັດການສິນຄ້າ</div>
     <div class="drawer-item" data-view="profile"><span class="ic" data-icon="profile">🔑</span> ປ່ຽນລະຫັດຜ່ານ</div>
   </div>
   <div class="drawer-foot">
@@ -499,7 +502,7 @@ function applyBranding(b){
 /*** ================= STATE ================= ***/
 let CURRENT_USER = JSON.parse(sessionStorage.getItem('lmg_user') || 'null');
 let AUTH_TOKEN = sessionStorage.getItem('lmg_token') || null;
-let CONFIG = { category:[], channel:[], status:[], currency:[], branding:{} };
+let CONFIG = { category:[], channel:[], status:[], followUp:[], currency:[], branding:{}, productTree:{} };
 let RECORDS = [];
 let DASHBOARD = {};
 let currentView = 'home';
@@ -616,6 +619,31 @@ function periodLabelText(){
   return (dashboardYear==='all' ? '' : dashboardYear+' · ') + PERIOD_LABELS[dashboardPeriod];
 }
 
+/*** ==== ຕົ້ນໄມ້ສິນຄ້າ (ໝວດ > ຍີ່ຫໍ້ > ຮຸ່ນ) ==== ***/
+function brandsForCategory(cat){ return Object.keys((CONFIG.productTree && CONFIG.productTree[cat]) || {}); }
+function modelsForBrand(cat, brand){ return (CONFIG.productTree && CONFIG.productTree[cat] && CONFIG.productTree[cat][brand]) || []; }
+
+// ຜູກ dropdown ຍີ່ຫໍ້/ຮຸ່ນ ໃນຟອມບັນທຶກລູກຄ້າ ໃຫ້ເຄື່ອນໄຫວຕາມກັນ
+function bindProductCascade(){
+  const catSel = $('#f_category'), brandSel = $('#f_brand'), modelSel = $('#f_model'), prodInput = $('#f_product');
+  if(!catSel || !brandSel || !modelSel) return;
+  function refreshBrands(){
+    const brands = brandsForCategory(catSel.value);
+    brandSel.innerHTML = '<option value="">-- ເລືອກຍີ່ຫໍ້ --</option>' + brands.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');
+    modelSel.innerHTML = '<option value="">-- ເລືອກຮຸ່ນ --</option>';
+  }
+  function refreshModels(){
+    const models = modelsForBrand(catSel.value, brandSel.value);
+    modelSel.innerHTML = '<option value="">-- ເລືອກຮຸ່ນ --</option>' + models.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  }
+  catSel.addEventListener('change', refreshBrands);
+  brandSel.addEventListener('change', refreshModels);
+  modelSel.addEventListener('change', ()=>{
+    if(brandSel.value && modelSel.value) prodInput.value = brandSel.value + ' ' + modelSel.value;
+  });
+  refreshBrands();
+}
+
 function computeDashboardStats(records){
   const stats = { total: records.length, revenueByCurrency:{}, byStatus:{}, byChannel:{}, byCategory:{}, byStaff:{}, byDate:{} };
   records.forEach(r=>{
@@ -706,6 +734,7 @@ function bootApp(){
       $('#navUsers').style.display='flex';
       $('#navSettings').style.display='flex';
       $('#navBranding').style.display='flex';
+      $('#navProductTree').style.display='flex';
     }
     refreshStaffList(()=> renderView('home'));
   }).withFailureHandler(err=>{
@@ -768,6 +797,7 @@ function renderView(view){
   else if(view==='users') wrap.innerHTML = viewUsers();
   else if(view==='settings') wrap.innerHTML = viewSettings();
   else if(view==='branding') wrap.innerHTML = viewBranding();
+  else if(view==='producttree') wrap.innerHTML = viewProductTree();
   else if(view==='profile') wrap.innerHTML = viewProfile();
   $all('[data-icon]').forEach(el=>{ el.textContent = ic(el.dataset.icon); });
   afterRender(view);
@@ -820,7 +850,9 @@ function recordFormHtml(r){
     <div class="field"><label>Follow up</label><select id="f_followUp">${opt(CONFIG.followUp, r['Follow up'])}</select></div>
     <div class="field"><label>ຮູ້ຈັກ LMG ທາງໃດ</label><select id="f_channel">${opt(CONFIG.channel, r['ຮູ້ຈັກ LMG ທາງໃດ'])}</select></div>
     <div class="field"><label>ສົນໃຈສິນຄ້າປະເພດໃດ</label><select id="f_category">${opt(CONFIG.category, r['ສົນໃຈສິນຄ້າປະເພດໃດ'])}</select></div>
-    <div class="field full"><label>ລູກຄ້າສົນໃຈຊື້ອັນໃດ</label><input type="text" id="f_product" placeholder="ຊື່ສິນຄ້າ" value="${esc(r['ລູກຄ້າສົນໃຈຊື້ອັນໃດ'])}"></div>
+    <div class="field"><label>ຍີ່ຫໍ້ (Brand)</label><select id="f_brand"><option value="">-- ເລືອກຍີ່ຫໍ້ --</option></select></div>
+    <div class="field"><label>ຮຸ່ນ (Model)</label><select id="f_model"><option value="">-- ເລືອກຮຸ່ນ --</option></select></div>
+    <div class="field full"><label>ລູກຄ້າສົນໃຈຊື້ອັນໃດ</label><input type="text" id="f_product" placeholder="ຈະຖືກຕື່ມອັດຕະໂນມັດຫຼັງເລືອກຍີ່ຫໍ້/ຮຸ່ນ, ຫຼືພິມເອງໄດ້" value="${esc(r['ລູກຄ້າສົນໃຈຊື້ອັນໃດ'])}"></div>
     <div class="field"><label>ຈຳນວນ</label><input type="number" id="f_qty" min="0" value="${r['ຈຳນວນ']||1}"></div>
     <div class="field"><label>ສະກຸນເງິນ</label><select id="f_currency">${opt(CONFIG.currency, r['ສະກຸນເງິນ'])}</select></div>
     <div class="field full"><label>ລາຄາ</label><input type="number" id="f_price" min="0" placeholder="0" value="${r['ລາຄາ']||''}"></div>
@@ -924,6 +956,7 @@ function openRecordModal(id){
     <button class="btn btn-primary" style="margin-top:10px;" id="btnSaveModal">${ic('save')} ບັນທຶກ</button>
   `;
   $('#modalOverlay').classList.add('show');
+  bindProductCascade();
   $('#btnSaveModal').addEventListener('click', ()=>{
     const payload = collectFormPayload();
     if(!payload.customerName){ showToast(ic('warn')+' ກະລຸນາປ້ອນຊື່ລູກຄ້າ'); return; }
@@ -1407,6 +1440,65 @@ function addPill(key){
 }
 function removePill(key, idx){ CONFIG[key].splice(idx,1); configDirty = true; renderView('settings'); }
 
+/*** ================= ADMIN: ຈັດການສິນຄ້າ (ໝວດ > ຍີ່ຫໍ້ > ຮຸ່ນ) ================= ***/
+function viewProductTree(){
+  if(!CONFIG.productTree) CONFIG.productTree = {};
+  const cats = CONFIG.category || [];
+  return `
+  <div class="section-title" style="margin-bottom:4px;">📦 ຈັດການສິນຄ້າ (ຍີ່ຫໍ້ / ຮຸ່ນ)</div>
+  <div class="section-sub">ເລືອກໝວດ ແລ້ວເພີ່ມຍີ່ຫໍ້ ແລະ ຮຸ່ນ ໃຫ້ພະນັກງານເລືອກໃນຟອມ ໜ້າຫຼັກ</div>
+  ${cats.length ? cats.map(productTreeCategoryHtml).join('') : emptyHtml('ຍັງບໍ່ມີໝວດສິນຄ້າ, ໄປເພີ່ມທີ່ໜ້າ "ຕັ້ງຄ່າຕົວເລືອກ" ກ່ອນ')}
+  ${cats.length ? `<button class="btn btn-primary" id="btnSaveProductTree">${ic('save')} ບັນທຶກລາຍການສິນຄ້າ</button>` : ''}
+  `;
+}
+function productTreeCategoryHtml(cat){
+  const brandsObj = CONFIG.productTree[cat] || {};
+  const brands = Object.keys(brandsObj);
+  return `
+  <div class="card">
+    <div class="section-title" style="font-size:14.5px;">📁 ${esc(cat)}</div>
+    <div style="margin-top:10px;">
+      ${brands.map(brand=>`
+        <div class="brand-box">
+          <div class="brand-box-head">
+            <strong style="font-size:13.5px;">🏷️ ${esc(brand)}</strong>
+            <span class="x" style="cursor:pointer;color:var(--danger);font-weight:700;font-size:12.5px;" onclick="removeBrand('${esc(cat)}','${esc(brand)}')">✕ ລຶບຍີ່ຫໍ້</span>
+          </div>
+          <div class="pill-row" style="margin-top:8px;">
+            ${(brandsObj[brand]||[]).map((m,i)=>`<span class="pill">${esc(m)}<span class="x" onclick="removeModel('${esc(cat)}','${esc(brand)}',${i})">✕</span></span>`).join('') || '<span class="section-sub" style="margin:0;">ຍັງບໍ່ມີຮຸ່ນ</span>'}
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <input type="text" id="newmodel_${esc(cat)}_${esc(brand)}" placeholder="ເພີ່ມຮຸ່ນໃໝ່ ເຊັ່ນ: A07">
+            <button class="btn btn-outline btn-sm" onclick="addModel('${esc(cat)}','${esc(brand)}')">ເພີ່ມຮຸ່ນ</button>
+          </div>
+        </div>`).join('')}
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="newbrand_${esc(cat)}" placeholder="ເພີ່ມຍີ່ຫໍ້ໃໝ່ ເຊັ່ນ: Samsung">
+        <button class="btn btn-outline btn-sm" onclick="addBrand('${esc(cat)}')">ເພີ່ມຍີ່ຫໍ້</button>
+      </div>
+    </div>
+  </div>`;
+}
+function addBrand(cat){
+  const input = $('#newbrand_'+cat); const v = input.value.trim(); if(!v) return;
+  if(!CONFIG.productTree[cat]) CONFIG.productTree[cat] = {};
+  if(!CONFIG.productTree[cat][v]) CONFIG.productTree[cat][v] = [];
+  renderView('producttree');
+}
+function removeBrand(cat, brand){
+  if(CONFIG.productTree[cat]) delete CONFIG.productTree[cat][brand];
+  renderView('producttree');
+}
+function addModel(cat, brand){
+  const input = $('#newmodel_'+cat+'_'+brand); const v = input.value.trim(); if(!v) return;
+  CONFIG.productTree[cat][brand].push(v);
+  renderView('producttree');
+}
+function removeModel(cat, brand, idx){
+  CONFIG.productTree[cat][brand].splice(idx,1);
+  renderView('producttree');
+}
+
 /*** ================= ADMIN: BRANDING (ตกแต่งแอป) ================= ***/
 function viewBranding(){
   brandingDraft = Object.assign({}, BRAND_DEFAULTS, CONFIG.branding||{});
@@ -1608,7 +1700,7 @@ function viewProfile(){
 
 /*** ================= AFTER-RENDER BINDINGS ================= ***/
 function afterRender(view){
-  if(view==='home'){ $('#btnSaveHome').addEventListener('click', saveHomeForm); }
+  if(view==='home'){ $('#btnSaveHome').addEventListener('click', saveHomeForm); bindProductCascade(); }
   if(view==='records'){
     $('#searchInput').addEventListener('input', e=>{ recordFilterQuery = e.target.value; $('#recordListArea').innerHTML = renderRecordList(); });
   }
@@ -1673,6 +1765,22 @@ function afterRender(view){
     });
   }
   if(view==='branding'){ bindBrandingForm(); }
+  if(view==='producttree'){
+    const btnSavePT = $('#btnSaveProductTree');
+    if(btnSavePT){
+      btnSavePT.addEventListener('click', ()=>{
+        btnSavePT.disabled = true; btnSavePT.textContent = 'ກຳລັງບັນທຶກ...';
+        google.script.run.withSuccessHandler(res=>{
+          btnSavePT.disabled = false; btnSavePT.innerHTML = ic('save')+' ບັນທຶກລາຍການສິນຄ້າ';
+          if(res.success) showToast(ic('ok')+' ບັນທຶກລາຍການສິນຄ້າສຳເລັດ');
+          else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
+        }).withFailureHandler(err=>{
+          btnSavePT.disabled = false; btnSavePT.innerHTML = ic('save')+' ບັນທຶກລາຍການສິນຄ້າ';
+          onApiFail_(err);
+        }).updateProductTree(CONFIG.productTree, CURRENT_USER.role);
+      });
+    }
+  }
   if(view==='profile'){
     $('#btnChangePw').addEventListener('click', ()=>{
       const oldPw = $('#p_old').value, newPw = $('#p_new').value;
