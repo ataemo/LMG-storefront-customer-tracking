@@ -709,8 +709,8 @@ function computeDashboardStats(records){
     const cur = r['ສະກຸນເງິນ']||'KIP';
     const price = Number(r['ລາຄາ'])||0;
     const qty = Number(r['ຈຳນວນ'])||0;
-    if(CLOSED_STATUSES.includes(r['Status ຊື້ຄ້າ'])) stats.revenueByCurrency[cur] = (stats.revenueByCurrency[cur]||0) + price*(qty||1);
-    const st = r['Status ຊື້ຄ້າ']||'ບໍ່ລະບຸ';
+    if(CLOSED_STATUSES.includes(r['Status ຊື້ສິນຄ້າ'])) stats.revenueByCurrency[cur] = (stats.revenueByCurrency[cur]||0) + price*(qty||1);
+    const st = r['Status ຊື້ສິນຄ້າ']||'ບໍ່ລະບຸ';
     stats.byStatus[st] = (stats.byStatus[st]||0)+1;
     const ch = r['ຮູ້ຈັກ LMG ທາງໃດ']||'ບໍ່ລະບຸ';
     stats.byChannel[ch] = (stats.byChannel[ch]||0)+1;
@@ -927,7 +927,7 @@ function recordFormHtml(r){
     <div class="field"><label>ຈຳນວນ</label><input type="number" id="f_qty" min="0" value="${r['ຈຳນວນ']||1}"></div>
     <div class="field"><label>ສະກຸນເງິນ</label><select id="f_currency">${opt(CONFIG.currency, r['ສະກຸນເງິນ'])}</select></div>
     <div class="field full"><label>ລາຄາ</label><input type="number" id="f_price" min="0" placeholder="0" value="${r['ລາຄາ']||''}"></div>
-    <div class="field"><label>Status ຊື້ຄ້າ</label><select id="f_status">${opt(CONFIG.status, r['Status ຊື້ຄ້າ'])}</select></div>
+    <div class="field"><label>Status ຊື້ສິນຄ້າ</label><select id="f_status">${opt(CONFIG.status, r['Status ຊື້ສິນຄ້າ'])}</select></div>
     <div class="field"><label>ພະນັກງານຂາຍ / ພະແນກ</label><select id="f_salesStaff">${deptOptionsHtml(r['ພະນັກງານຂາຍ'] || CURRENT_USER.department || 'LMG')}</select></div>
     <div class="field full"><label>Action ຕໍ່ໄປ</label><input type="text" id="f_action" placeholder="ຂັ້ນຕອນຕໍ່ໄປ" value="${esc(r['Action ຕໍ່ໄປ'])}"></div>
     <div class="field full"><label>ໝາຍເຫດ</label><textarea id="f_note" rows="2" placeholder="ບັນທຶກເພີ່ມເຕີມ">${esc(r['ໝາຍເຫດ'])}</textarea></div>
@@ -992,7 +992,7 @@ function recordItemHtml(r){
       <div class="rmeta">
         <span class="badge">${esc(r['ຮູ້ຈັກ LMG ທາງໃດ']||'-')}</span>
         <span class="badge">${esc(r['ສົນໃຈສິນຄ້າປະເພດໃດ']||'-')}</span>
-        <span class="badge status">${esc(r['Status ຊື້ຄ້າ']||'-')}</span><br>
+        <span class="badge status">${esc(r['Status ຊື້ສິນຄ້າ']||'-')}</span><br>
         🛍️ ${esc(r['ລູກຄ້າສົນໃຈຊື້ອັນໃດ']||'-')} · ${fmtNum(r['ລາຄາ'])} ${esc(r['ສະກຸນເງິນ']||'')}<br>
         📅 ${esc(String(r['ວັນທີ']||'').slice(0,10))}
       </div>
@@ -1359,7 +1359,7 @@ const REPORT_COLS = [
   {key:'ຈຳນວນ', label:'ຈຳນວນ'},
   {key:'ລາຄາ', label:'ລາຄາ'},
   {key:'ສະກຸນເງິນ', label:'ສະກຸນເງິນ'},
-  {key:'Status ຊື້ຄ້າ', label:'Status ຊື້ຄ້າ'},
+  {key:'Status ຊື້ສິນຄ້າ', label:'Status ຊື້ສິນຄ້າ'},
   {key:'Action ຕໍ່ໄປ', label:'Action ຕໍ່ໄປ'},
   {key:'ໝາຍເຫດ', label:'ໝາຍເຫດ'},
   {key:'ພະນັກງານຂາຍ', label:'ພະນັກງານຂາຍ'}
