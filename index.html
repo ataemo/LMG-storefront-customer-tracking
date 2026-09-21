@@ -292,6 +292,24 @@ a{text-decoration:none;color:inherit;}
 .brand-box{border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:#faf9ff;}
 .brand-box-head{display:flex;justify-content:space-between;align-items:center;}
 
+/* ---------- ກ່ອງປະຫວັດລູກຄ້າ / ເຕືອນຂໍ້ມູນຊ້ຳ ---------- */
+.dup-box{border-radius:16px;border:1.5px solid var(--border);background:#fff;padding:14px;margin:0 0 16px;box-shadow:var(--shadow-sm);animation:pop .25s ease;}
+.dup-box.warn{border-color:#f0b100;background:#fffbeb;}
+.dup-box.danger{border-color:var(--danger);background:#fef2f2;}
+.dup-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:800;font-size:14px;}
+.dup-sub{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.6;}
+.dup-list{max-height:340px;overflow-y:auto;margin-top:6px;}
+.dup-item{border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin-top:10px;background:#fff;}
+.dup-item.sameday{border-color:var(--danger);border-width:1.5px;}
+.dup-item .dt{font-weight:700;font-size:13.5px;}
+.dup-item .dl{font-size:12px;color:var(--muted);line-height:1.85;margin-top:4px;}
+.dup-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:800;margin:3px 4px 0 0;}
+.dup-badge.red{background:#fee2e2;color:#b91c1c;}
+.dup-badge.amber{background:#fef3c7;color:#92400e;}
+.dup-badge.gray{background:#f1eefb;color:var(--primary-dark);}
+.dup-actions{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap;}
+.dup-spin{font-size:12.5px;color:var(--muted);font-weight:600;}
+
 /* Desktop enhancements */
 @media(min-width:900px){
   .main-wrap{padding:24px 24px 40px;}
@@ -538,6 +556,11 @@ document.addEventListener('click', (e)=>{
   if(editBtn){ openRecordModal(editBtn.dataset.id); return; }
   const delBtn = e.target.closest('[data-action="delete-record"]');
   if(delBtn){ confirmDelete(delBtn.dataset.id); return; }
+  const dupBtn = e.target.closest('[data-dup-action]');
+  if(dupBtn){
+    if(dupBtn.dataset.dupAction === 'hide'){ dupBoxHidden = true; renderDupBox(); return; }
+    if(dupBtn.dataset.dupAction === 'fill'){ fillFromHistory_(dupBtn.dataset.id); return; }
+  }
   const pageBtn = e.target.closest('[data-page-action]');
   if(pageBtn){
     const totalPages = Number(pageBtn.dataset.totalPages)||1;
@@ -913,6 +936,7 @@ function recordFormHtml(r){
   const opt = (arr, val) => arr.map(v=>`<option value="${esc(v)}" ${v===val?'selected':''}>${esc(v)}</option>`).join('');
   const staffSelected = r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||CURRENT_USER.fullName;
   return `
+  <div id="custHistoryBox"></div>
   <div class="form-grid">
     <div class="field"><label>ວັນທີ</label><input type="date" id="f_date" value="${r['ວັນທີ']? String(r['ວັນທີ']).slice(0,10) : todayStr()}"></div>
     <div class="field"><label>ຊື່ພະນັກງານຮັບລູກຄ້າ</label><select id="f_staffName">${staffOptionsHtml(staffSelected)}</select></div>
@@ -934,22 +958,162 @@ function recordFormHtml(r){
   </div>`;
 }
 
-function findDuplicateRecord_(payload, excludeId){
-  const invoice = String(payload.invoice||'').trim();
-  const phone = String(payload.phone||'').trim();
-  if(!invoice && !phone) return null;
-  return RECORDS.find(r=>{
-    if(excludeId && r['ID']===excludeId) return false;
-    const sameInvoice = invoice && String(r['ເລກທີ Invoice']||'').trim()===invoice;
-    const samePhone = phone && String(r['ເບີໂທຕິດຕໍ່']||'').trim()===phone;
-    return sameInvoice || samePhone;
-  }) || null;
+/*** ============ ກວດປະຫວັດລູກຄ້າ / ຂໍ້ມູນຊ້ຳ (Real-time) ============ ***/
+let DUP_RESULT = { matches: [], total: 0 };
+let dupReqSeq = 0;
+let dupBoxHidden = false;
+
+function formRoot_(){ return document.querySelector('#modalOverlay.show') || document; }
+function dupBoxEl_(){ return formRoot_().querySelector('#custHistoryBox'); }
+
+function currentLookupQuery_(){
+  const root = formRoot_();
+  const v = s => (root.querySelector(s) || {}).value || '';
+  return {
+    name: v('#f_customerName'), phone: v('#f_phone'), invoice: v('#f_invoice'),
+    product: v('#f_product'), date: v('#f_date'), excludeId: editingId || ''
+  };
 }
+
+function lookupEnough_(q){
+  return String(q.phone).replace(/[^0-9]/g,'').length >= 6
+      || String(q.name).trim().length >= 2
+      || String(q.invoice).trim().length >= 2
+      || String(q.product).trim().length >= 2;
+}
+
+// debounce 500ms — ກັນບໍ່ໃຫ້ຍິງ API ທຸກໆຕົວອັກສອນທີ່ພິມ
+const runCustomerLookup = debounce_(()=>{
+  const box = dupBoxEl_(); if(!box) return;
+  const q = currentLookupQuery_();
+  if(!lookupEnough_(q)){ DUP_RESULT = {matches:[],total:0}; box.innerHTML=''; return; }
+  box.innerHTML = `<div class="dup-box"><span class="dup-spin">⏳ ກຳລັງກວດປະຫວັດລູກຄ້າ...</span></div>`;
+  const seq = ++dupReqSeq;
+  google.script.run.withSuccessHandler(res=>{
+    if(seq !== dupReqSeq) return;               // ຜົນລັບເກົ່າມາຊ້າ → ຖິ້ມ
+    DUP_RESULT = res || {matches:[],total:0};
+    dupBoxHidden = false;
+    renderDupBox();
+  }).withFailureHandler(()=>{
+    if(seq === dupReqSeq && dupBoxEl_()) dupBoxEl_().innerHTML='';
+  }).lookupCustomerHistory(q);
+}, 500);
+
+function renderDupBox(){
+  const box = dupBoxEl_(); if(!box) return;
+  if(dupBoxHidden){ box.innerHTML=''; return; }
+  const list = DUP_RESULT.matches || [];
+  if(!list.length){ box.innerHTML=''; return; }
+  const hard = list.filter(m=>m.hardDup);
+  const cls   = hard.length ? 'danger' : 'warn';
+  const title = hard.length
+    ? `🔴 ພົບຂໍ້ມູນຊ້ຳໃນມື້ດຽວກັນ (${hard.length} ລາຍການ)`
+    : `🟠 ລູກຄ້າຄົນນີ້ເຄີຍຖືກບັນທຶກມາແລ້ວ (${DUP_RESULT.total} ລາຍການ)`;
+  box.innerHTML = `
+  <div class="dup-box ${cls}">
+    <div class="dup-head">
+      <span>${title}</span>
+      <button type="button" class="btn-refresh" data-dup-action="hide">✕ ເຊື່ອງ</button>
+    </div>
+    <div class="dup-sub">ກວດຈາກ ຊື່ / ເບີໂທ / Invoice / ສິນຄ້າ ຂອງພະນັກງານທຸກຄົນ · ສະແດງ ${list.length} ຈາກ ${DUP_RESULT.total} ລາຍການ</div>
+    <div class="dup-list">${list.map(dupItemHtml_).join('')}</div>
+  </div>`;
+}
+
+function dupItemHtml_(m){
+  const badges = (m.sameDay ? '<span class="dup-badge red">⚠️ ມື້ດຽວກັນ</span>' : '')
+    + (m.reasons||[]).map(r=>`<span class="dup-badge ${m.sameDay?'amber':'gray'}">${esc(r)}</span>`).join('');
+  return `
+  <div class="dup-item ${m.sameDay?'sameday':''}">
+    <div class="dt">${esc(m.customerName||'(ບໍ່ມີຊື່)')}${m.phone?(' · '+esc(m.phone)):''}</div>
+    <div>${badges}</div>
+    <div class="dl">
+      📅 ${esc(m.date)} · 👤 ${esc(m.staffName)}${m.salesStaff?(' · 🏢 '+esc(m.salesStaff)):''}<br>
+      🛍️ ${esc(m.product||'-')}${m.category?(' ('+esc(m.category)+')'):''} · ${fmtNum(m.price)} ${esc(m.currency||'')} × ${fmtNum(m.qty)}<br>
+      ${m.invoice?('🧾 Invoice: '+esc(m.invoice)+'<br>'):''}
+      📌 ${esc(m.status||'-')}${m.action?(' · ➡️ '+esc(m.action)):''}
+      ${m.note?('<br>📝 '+esc(m.note)):''}
+    </div>
+    <div class="dup-actions">
+      <button type="button" class="btn-refresh" data-dup-action="fill" data-id="${esc(m.id)}">📥 ຕື່ມຂໍ້ມູນລູກຄ້ານີ້ໃສ່ຟອມ</button>
+    </div>
+  </div>`;
+}
+
+function fillFromHistory_(id){
+  const m = (DUP_RESULT.matches||[]).find(x=>x.id===id);
+  if(!m) return;
+  const root = formRoot_();
+  const set = (sel, val)=>{
+    const el = root.querySelector(sel);
+    if(!el || val==null || val==='') return;
+    el.value = val;
+    if(el.tagName === 'SELECT') el.dispatchEvent(new Event('change'));
+  };
+  set('#f_customerName', m.customerName);
+  set('#f_phone', m.phone);
+  set('#f_channel', m.channel);
+  set('#f_category', m.category);   // ສັ່ງ change ເພື່ອໃຫ້ dropdown ຍີ່ຫໍ້ refresh
+  set('#f_currency', m.currency);
+  set('#f_product', m.product);     // ຕ້ອງຕັ້ງຫຼັງ category ສະເໝີ
+  showToast(ic('ok')+' ຕື່ມຂໍ້ມູນລູກຄ້າເກົ່າແລ້ວ (ວັນທີ/ສະຖານະ ຍັງເປັນຂອງລາຍການໃໝ່)');
+  runCustomerLookup();
+}
+
+function bindDupWatch(){
+  const root = formRoot_();
+  ['#f_customerName','#f_phone','#f_invoice','#f_product','#f_date','#f_brand','#f_model'].forEach(sel=>{
+    const el = root.querySelector(sel);
+    if(!el) return;
+    el.addEventListener('input', runCustomerLookup);
+    el.addEventListener('change', runCustomerLookup);
+  });
+  DUP_RESULT = { matches: [], total: 0 };
+  dupBoxHidden = false;
+  const box = dupBoxEl_(); if(box) box.innerHTML='';
+  if(editingId) runCustomerLookup();   // ຕອນແກ້ໄຂ ໃຫ້ໂຫລດປະຫວັດທັນທີ
+}
+
+// ★ ກວດຊ້ຳແບບ "ຖາມ Server ສົດໆ" ກ່ອນບັນທຶກ — ກັນກໍລະນີພິມໄວແລ້ວກົດບັນທຶກທັນທີ
+function guardDuplicate_(payload, excludeId, onProceed, onCancel){
+  const q = {
+    name: payload.customerName, phone: payload.phone, invoice: payload.invoice,
+    product: payload.product, date: payload.date, excludeId: excludeId || ''
+  };
+  if(!lookupEnough_(q)){ payload.force = true; onProceed(); return; }
+  google.script.run.withSuccessHandler(res=>{
+    DUP_RESULT = res || {matches:[],total:0};
+    dupBoxHidden = false;
+    renderDupBox();
+    if(confirmDuplicateIfAny_(payload, excludeId)){ payload.force = true; onProceed(); }
+    else if(onCancel) onCancel();
+  }).withFailureHandler(()=>{ payload.force = true; onProceed(); })
+  .lookupCustomerHistory(q);
+}
+
 function confirmDuplicateIfAny_(payload, excludeId){
-  const dup = findDuplicateRecord_(payload, excludeId);
-  if(!dup) return true;
-  const reason = String(payload.invoice||'').trim() && String(dup['ເລກທີ Invoice']||'').trim()===String(payload.invoice||'').trim() ? 'ເລກທີ Invoice' : 'ເບີໂທຕິດຕໍ່';
-  return confirm('⚠️ ພົບຂໍ້ມູນຊ້ຳ ('+reason+') ກັບລູກຄ້າ "'+(dup['ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ']||'-')+'" ('+String(dup['ວັນທີ']||'').slice(0,10)+'). ຕ້ອງການບັນທຶກຕໍ່ແທ້ບໍ?');
+  const list = (DUP_RESULT.matches||[]).filter(m=> m.id !== excludeId);
+  if(!list.length) return true;
+  const hard = list.filter(m=> m.hardDup);
+  if(hard.length){
+    const m = hard[0];
+    return confirm(
+      '🔴 ພົບຂໍ້ມູນຊ້ຳໃນມື້ດຽວກັນ!\n\n'+
+      'ລູກຄ້າ: '+(m.customerName||'-')+'\n'+
+      'ເບີໂທ: '+(m.phone||'-')+'\n'+
+      'ສິນຄ້າ: '+(m.product||'-')+'\n'+
+      'ບັນທຶກໂດຍ: '+(m.staffName||'-')+' ເມື່ອ '+m.date+'\n'+
+      'ກົງກັນທີ່: '+(m.reasons||[]).join(', ')+'\n\n'+
+      'ຢືນຢັນວ່າຕ້ອງການບັນທຶກເພີ່ມອີກລາຍການແທ້ບໍ?'
+    );
+  }
+  const m = list[0];
+  return confirm(
+    '🟠 ລູກຄ້ານີ້ມີປະຫວັດຢູ່ແລ້ວ ('+DUP_RESULT.total+' ລາຍການ)\n\n'+
+    'ລ່າສຸດ: '+m.date+' · '+(m.product||'-')+' · '+(m.status||'-')+'\n'+
+    'ບັນທຶກໂດຍ: '+(m.staffName||'-')+'\n\n'+
+    'ຕ້ອງການບັນທຶກເປັນລາຍການໃໝ່ແທ້ບໍ?'
+  );
 }
 
 function collectFormPayload(){
@@ -967,18 +1131,19 @@ function collectFormPayload(){
 function saveHomeForm(){
   const payload = collectFormPayload();
   if(!payload.customerName){ showToast(ic('warn')+' ກະລຸນາປ້ອນຊື່ລູກຄ້າ'); return; }
-  if(!confirmDuplicateIfAny_(payload, null)) return;
-  const btn = $('#btnSaveHome'); btn.textContent='ກຳລັງບັນທຶກ...'; btn.disabled=true;
-  google.script.run.withSuccessHandler(res=>{
-    btn.disabled=false; btn.innerHTML = ic('save')+' ບັນທຶກລູກຄ້າ';
-    if(res.success){
-      showToast(ic('ok')+' ບັນທຶກລູກຄ້າສຳເລັດ');
-      refreshAll(()=> renderView('home'));
-    } else { showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
-  }).withFailureHandler(err=>{
-    btn.disabled=false; btn.innerHTML = ic('save')+' ບັນທຶກລູກຄ້າ';
-    onApiFail_(err);
-  }).addRecord(payload, CURRENT_USER.username);
+  const btn = $('#btnSaveHome');
+  const reset = ()=>{ btn.disabled=false; btn.innerHTML = ic('save')+' ບັນທຶກລູກຄ້າ'; };
+  btn.disabled = true; btn.textContent = '🔍 ກຳລັງກວດຂໍ້ມູນຊ້ຳ...';
+  guardDuplicate_(payload, null, ()=>{
+    btn.textContent = 'ກຳລັງບັນທຶກ...';
+    google.script.run.withSuccessHandler(res=>{
+      reset();
+      if(res.success){
+        showToast(ic('ok')+' ບັນທຶກລູກຄ້າສຳເລັດ');
+        refreshAll(()=> renderView('home'));
+      } else { showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
+    }).withFailureHandler(err=>{ reset(); onApiFail_(err); }).addRecord(payload);
+  }, reset);
 }
 
 /*** ================= RECORDS LIST ================= ***/
@@ -1095,26 +1260,30 @@ function openRecordModal(id){
   `;
   $('#modalOverlay').classList.add('show');
   bindProductCascade();
+  bindDupWatch();     // ← ເພີ່ມແຖວນີ້
   $('#btnSaveModal').addEventListener('click', ()=>{
     const payload = collectFormPayload();
     if(!payload.customerName){ showToast(ic('warn')+' ກະລຸນາປ້ອນຊື່ລູກຄ້າ'); return; }
-    if(!confirmDuplicateIfAny_(payload, editingId)) return;
-    const btn = $('#btnSaveModal'); btn.textContent='ກຳລັງບັນທຶກ...'; btn.disabled=true;
-    if(editingId){
-      google.script.run.withSuccessHandler(res=>{
-        btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກ';
-        if(res.success){ showToast(ic('ok')+' ແກ້ໄຂສຳເລັດ'); closeModal(); refreshAll(()=>renderView(currentView)); }
-        else { showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
-      }).withFailureHandler(err=>{ btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກ'; onApiFail_(err); })
-      .updateRecord(editingId, payload, CURRENT_USER.username, CURRENT_USER.role);
-    } else {
-      google.script.run.withSuccessHandler(res=>{
-        btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກ';
-        if(res.success){ showToast(ic('ok')+' ບັນທຶກສຳເລັດ'); closeModal(); refreshAll(()=>renderView(currentView)); }
-        else { showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ')); }
-      }).withFailureHandler(err=>{ btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກ'; onApiFail_(err); })
-      .addRecord(payload, CURRENT_USER.username);
-    }
+    const btn = $('#btnSaveModal');
+    const reset = ()=>{ btn.disabled=false; btn.innerHTML = ic('save')+' ບັນທຶກ'; };
+    const done = res=>{
+      reset();
+      if(res.success){ showToast(ic('ok')+' ບັນທຶກສຳເລັດ'); closeModal(); refreshAll(()=>renderView(currentView)); }
+      else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
+    };
+    btn.disabled = true; btn.textContent = '🔍 ກຳລັງກວດຂໍ້ມູນຊ້ຳ...';
+    guardDuplicate_(payload, editingId, ()=>{
+      btn.textContent = 'ກຳລັງບັນທຶກ...';
+      if(editingId){
+        google.script.run.withSuccessHandler(done)
+          .withFailureHandler(err=>{ reset(); onApiFail_(err); })
+          .updateRecord(editingId, payload);
+      } else {
+        google.script.run.withSuccessHandler(done)
+          .withFailureHandler(err=>{ reset(); onApiFail_(err); })
+          .addRecord(payload);
+      }
+    }, reset);
   });
 }
 function closeModal(){ $('#modalOverlay').classList.remove('show'); editingId=null; }
@@ -1874,7 +2043,7 @@ function viewProfile(){
 
 /*** ================= AFTER-RENDER BINDINGS ================= ***/
 function afterRender(view){
-  if(view==='home'){ $('#btnSaveHome').addEventListener('click', saveHomeForm); bindProductCascade(); }
+  if(view==='home'){ $('#btnSaveHome').addEventListener('click', saveHomeForm); bindProductCascade(); bindDupWatch(); }
   if(view==='records'){
     $('#searchInput').addEventListener('input', e=>{ recordFilterQuery = e.target.value; recordsPage = 1; $('#recordListArea').innerHTML = renderRecordList(); });
     $('#recordsMonthSelect').addEventListener('change', e=>{
