@@ -545,6 +545,21 @@ let dashboardCustomTo = '';
 let configDirty = false;
 let DASH_STATS = {};
 let STAFF_LIST = [];
+let PHONE_COUNTS = {};
+function normPhoneClient_(s){ return String(s==null?'':s).replace(/[^0-9]/g,''); }
+function rebuildPhoneCounts_(){
+  PHONE_COUNTS = {};
+  RECORDS.forEach(r=>{
+    const p = normPhoneClient_(r['ເບີໂທຕິດຕໍ່']);
+    if(p.length>=6) PHONE_COUNTS[p] = (PHONE_COUNTS[p]||0)+1;
+  });
+}
+function dupPhoneBadge_(phone){
+  const p = normPhoneClient_(phone);
+  const c = PHONE_COUNTS[p]||0;
+  if(!p || c<=1) return '';
+  return `<span class="badge" style="background:#fee2e2;color:#b91c1c;font-weight:800;">⚠️ ເບີນີ້ຊ້ຳ ${c} ລາຍການ</span>`;
+}
 let CHART_INSTANCES = {};
 function destroyChart_(key){ if(CHART_INSTANCES[key]){ CHART_INSTANCES[key].destroy(); delete CHART_INSTANCES[key]; } }
 function debounce_(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
@@ -805,6 +820,7 @@ function doLogin(){
 function bootApp(){
   google.script.run.withSuccessHandler(data=>{
     CONFIG = data.config; RECORDS = data.records; DASHBOARD = data.dashboard;
+    rebuildPhoneCounts_();   // ← ເພີ່ມແຖວນີ້
     applyBranding(CONFIG.branding);
     $('#loadingScreen').style.display='none';
     $('#app').style.display='block';
@@ -831,6 +847,7 @@ function bootApp(){
 function refreshAll(cb){
   google.script.run.withSuccessHandler(data=>{
     CONFIG = data.config; RECORDS = data.records; DASHBOARD = data.dashboard;
+    rebuildPhoneCounts_();   // ← ເພີ່ມແຖວນີ້
     applyBranding(CONFIG.branding);
     refreshStaffList(()=>{ if(cb) cb(); });
   }).bootstrap(CURRENT_USER.username, CURRENT_USER.role);
@@ -994,8 +1011,10 @@ const runCustomerLookup = debounce_(()=>{
     DUP_RESULT = res || {matches:[],total:0};
     dupBoxHidden = false;
     renderDupBox();
-  }).withFailureHandler(()=>{
-    if(seq === dupReqSeq && dupBoxEl_()) dupBoxEl_().innerHTML='';
+  }).withFailureHandler((err)=>{
+    if(seq === dupReqSeq && dupBoxEl_()){
+      dupBoxEl_().innerHTML = `<div class="dup-box warn"><span class="dup-spin">⚠️ ກວດປະຫວັດລູກຄ້າບໍ່ໄດ້ (${esc((err&&err.message)||'error')})</span></div>`;
+    }
   }).lookupCustomerHistory(q);
 }, 500);
 
@@ -1087,7 +1106,10 @@ function guardDuplicate_(payload, excludeId, onProceed, onCancel){
     renderDupBox();
     if(confirmDuplicateIfAny_(payload, excludeId)){ payload.force = true; onProceed(); }
     else if(onCancel) onCancel();
-  }).withFailureHandler(()=>{ payload.force = true; onProceed(); })
+  }).withFailureHandler((err)=>{
+    showToast(ic('warn')+' ກວດຂໍ້ມູນຊ້ຳບໍ່ໄດ້ ('+((err&&err.message)||'error')+') — ບັນທຶກຕໍ່ໄປໂດຍບໍ່ໄດ້ກວດຊ້ຳ');
+    payload.force = true; onProceed();
+  })
   .lookupCustomerHistory(q);
 }
 
@@ -1153,7 +1175,7 @@ function recordItemHtml(r){
   return `
   <div class="record-item">
     <div style="flex:1;min-width:0;">
-      <div class="rname">${esc(r['ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ']||'(ບໍ່ມີຊື່)')} ${r['ເບີໂທຕິດຕໍ່']?('· '+esc(r['ເບີໂທຕິດຕໍ່'])):''}</div>
+      <div class="rname">${esc(r['ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ']||'(ບໍ່ມີຊື່)')} ${r['ເບີໂທຕິດຕໍ່']?('· '+esc(r['ເບີໂທຕິດຕໍ່'])):''} ${dupPhoneBadge_(r['ເບີໂທຕິດຕໍ່'])}</div>
       <div class="rmeta">
         <span class="badge">${esc(r['ຮູ້ຈັກ LMG ທາງໃດ']||'-')}</span>
         <span class="badge">${esc(r['ສົນໃຈສິນຄ້າປະເພດໃດ']||'-')}</span>
