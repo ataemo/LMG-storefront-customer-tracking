@@ -655,11 +655,11 @@ function periodLabelText(){
   return (dashboardYear==='all' ? '' : dashboardYear+' · ') + PERIOD_LABELS[dashboardPeriod];
 }
 
-/*** ==== ຕົ້ນໄມ້ສິນຄ້າ (ໝວດ > ຍີ່ຫໍ້ > ຮຸ່ນ) ==== ***/
+/*** ==== ຕົ້ນໄມ້ສິນຄ້າ (ໝວດ > ຍີ່ຫໍ້ > ລຸ້ນ) ==== ***/
 function brandsForCategory(cat){ return Object.keys((CONFIG.productTree && CONFIG.productTree[cat]) || {}); }
 function modelsForBrand(cat, brand){ return (CONFIG.productTree && CONFIG.productTree[cat] && CONFIG.productTree[cat][brand]) || []; }
 
-// ຜູກ dropdown ຍີ່ຫໍ້/ຮຸ່ນ ໃນຟອມບັນທຶກລູກຄ້າ ໃຫ້ເຄື່ອນໄຫວຕາມກັນ
+// ຜູກ dropdown ຍີ່ຫໍ້/ລຸ້ນ ໃນຟອມບັນທຶກລູກຄ້າ ໃຫ້ເຄື່ອນໄຫວຕາມກັນ
 function bindProductCascade(){
   const root = document.querySelector('#modalOverlay.show') || document;
   const q = s => root.querySelector(s);
@@ -668,7 +668,7 @@ function bindProductCascade(){
 
   function refreshModels(){
     const models = modelsForBrand(catSel.value, brandSel.value);
-    modelSel.innerHTML = '<option value="">-- ເລືອກຮຸ່ນ --</option>' + models.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+    modelSel.innerHTML = '<option value="">-- ເລືອກລຸ້ນ --</option>' + models.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
     modelSel.disabled = !models.length;
   }
   function refreshBrands(){
@@ -691,7 +691,7 @@ function bindProductCascade(){
   });
   refreshBrands();
 
-  // ຕອນແກ້ໄຂລາຍການເກົ່າ: ເລືອກຍີ່ຫໍ້/ຮຸ່ນຄືນໃຫ້ອັດຕະໂນມັດ
+  // ຕອນແກ້ໄຂລາຍການເກົ່າ: ເລືອກຍີ່ຫໍ້/ລຸ້ນຄືນໃຫ້ອັດຕະໂນມັດ
   const cur = (prodInput.value || '').trim();
   if(cur){
     const b = brandsForCategory(catSel.value).find(x => cur === x || cur.startsWith(x + ' '));
@@ -922,8 +922,8 @@ function recordFormHtml(r){
     <div class="field"><label>ຮູ້ຈັກ LMG ທາງໃດ</label><select id="f_channel">${opt(CONFIG.channel, r['ຮູ້ຈັກ LMG ທາງໃດ'])}</select></div>
     <div class="field"><label>ສົນໃຈສິນຄ້າປະເພດໃດ</label><select id="f_category">${opt(CONFIG.category, r['ສົນໃຈສິນຄ້າປະເພດໃດ'])}</select></div>
     <div class="field"><label>ຍີ່ຫໍ້ (Brand)</label><select id="f_brand"><option value="">-- ເລືອກຍີ່ຫໍ້ --</option></select></div>
-    <div class="field"><label>ຮຸ່ນ (Model)</label><select id="f_model"><option value="">-- ເລືອກຮຸ່ນ --</option></select></div>
-    <div class="field full"><label>ລູກຄ້າສົນໃຈຊື້ອັນໃດ</label><input type="text" id="f_product" placeholder="ຈະຖືກຕື່ມອັດຕະໂນມັດຫຼັງເລືອກຍີ່ຫໍ້/ຮຸ່ນ, ຫຼືພິມເອງໄດ້" value="${esc(r['ລູກຄ້າສົນໃຈຊື້ອັນໃດ'])}"></div>
+    <div class="field"><label>ລຸ້ນ (Model)</label><select id="f_model"><option value="">-- ເລືອກລຸ້ນ --</option></select></div>
+    <div class="field full"><label>ລູກຄ້າສົນໃຈຊື້ອັນໃດ</label><input type="text" id="f_product" placeholder="ຈະຖືກຕື່ມອັດຕະໂນມັດຫຼັງເລືອກຍີ່ຫໍ້/ລຸ້ນ, ຫຼືພິມເອງໄດ້" value="${esc(r['ລູກຄ້າສົນໃຈຊື້ອັນໃດ'])}"></div>
     <div class="field"><label>ຈຳນວນ</label><input type="number" id="f_qty" min="0" value="${r['ຈຳນວນ']||1}"></div>
     <div class="field"><label>ສະກຸນເງິນ</label><select id="f_currency">${opt(CONFIG.currency, r['ສະກຸນເງິນ'])}</select></div>
     <div class="field full"><label>ລາຄາ</label><input type="number" id="f_price" min="0" placeholder="0" value="${r['ລາຄາ']||''}"></div>
@@ -1578,9 +1578,9 @@ function viewSettings(){
   ${grp('ຮູ້ຈັກ LMG ທາງໃດ (ຊ່ອງທາງ)','channel')}
   ${grp('ປະເພດສິນຄ້າ','category')}
   <div class="card">
-    <div class="section-title" style="font-size:14.5px;">🏷️ ຍີ່ຫໍ້ ແລະ ຮຸ່ນ (Brand / Model)</div>
-    <div class="section-sub" style="margin-top:4px;">ເພີ່ມຍີ່ຫໍ້ ແລະ ຮຸ່ນ ຂອງແຕ່ລະປະເພດສິນຄ້າ ໃຫ້ພະນັກງານເລືອກໃນຟອມ</div>
-    <button class="btn btn-outline btn-sm" onclick="renderView('producttree')">📦 ເປີດໜ້າຈັດການຍີ່ຫໍ້ / ຮຸ່ນ</button>
+    <div class="section-title" style="font-size:14.5px;">🏷️ ຍີ່ຫໍ້ ແລະ ລຸ້ນ (Brand / Model)</div>
+    <div class="section-sub" style="margin-top:4px;">ເພີ່ມຍີ່ຫໍ້ ແລະ ລຸ້ນ ຂອງແຕ່ລະປະເພດສິນຄ້າ ໃຫ້ພະນັກງານເລືອກໃນຟອມ</div>
+    <button class="btn btn-outline btn-sm" onclick="renderView('producttree')">📦 ເປີດໜ້າຈັດການຍີ່ຫໍ້ / ລຸ້ນ</button>
   </div>
   ${grp('Status ຊື້ສິນຄ້າ','status')}
   ${grp('ພະແນກ (ພະນັກງານຂາຍ)','department')}
@@ -1599,13 +1599,13 @@ function addPill(key){
 }
 function removePill(key, idx){ CONFIG[key].splice(idx,1); configDirty = true; renderView('settings'); }
 
-/*** ================= ADMIN: ຈັດການສິນຄ້າ (ໝວດ > ຍີ່ຫໍ້ > ຮຸ່ນ) ================= ***/
+/*** ================= ADMIN: ຈັດການສິນຄ້າ (ໝວດ > ຍີ່ຫໍ້ > ລຸ້ນ) ================= ***/
 function viewProductTree(){
   if(!CONFIG.productTree) CONFIG.productTree = {};
   const cats = CONFIG.category || [];
   return `
-  <div class="section-title" style="margin-bottom:4px;">📦 ຈັດການສິນຄ້າ (ຍີ່ຫໍ້ / ຮຸ່ນ)</div>
-  <div class="section-sub">ເພີ່ມຍີ່ຫໍ້ ແລະ ຮຸ່ນ ຂອງແຕ່ລະໝວດ ແລ້ວກົດ "ບັນທຶກ" ທ້າຍໜ້າ. ພິມຫຼາຍອັນພ້ອມກັນໄດ້ ໂດຍຂັ້ນດ້ວຍເຄື່ອງໝາຍ , (ເຊັ່ນ: A07, A15, A55)</div>
+  <div class="section-title" style="margin-bottom:4px;">📦 ຈັດການສິນຄ້າ (ຍີ່ຫໍ້ / ລຸ້ນ)</div>
+  <div class="section-sub">ເພີ່ມຍີ່ຫໍ້ ແລະ ລຸ້ນ ຂອງແຕ່ລະໝວດ ແລ້ວກົດ "ບັນທຶກ" ທ້າຍໜ້າ. ພິມຫຼາຍອັນພ້ອມກັນໄດ້ ໂດຍຂັ້ນດ້ວຍເຄື່ອງໝາຍ , (ເຊັ່ນ: A07, A15, A55)</div>
   ${cats.length ? cats.map((c,ci)=>productTreeCategoryHtml(c,ci)).join('') : emptyHtml('ຍັງບໍ່ມີໝວດສິນຄ້າ, ໄປເພີ່ມທີ່ໜ້າ "ຕັ້ງຄ່າຕົວເລືອກ" ກ່ອນ')}
   ${cats.length ? `<button class="btn btn-primary" id="btnSaveProductTree">${ic('save')} ບັນທຶກລາຍການສິນຄ້າ</button>` : ''}
   `;
@@ -1616,7 +1616,7 @@ function productTreeCategoryHtml(cat, ci){
   const totalModels = brands.reduce((n,b)=> n + (brandsObj[b]||[]).length, 0);
   return `
   <div class="card">
-    <div class="section-title" style="font-size:14.5px;">📁 ${esc(cat)} <span class="badge">${brands.length} ຍີ່ຫໍ້ · ${totalModels} ຮຸ່ນ</span></div>
+    <div class="section-title" style="font-size:14.5px;">📁 ${esc(cat)} <span class="badge">${brands.length} ຍີ່ຫໍ້ · ${totalModels} ລຸ້ນ</span></div>
     <div style="margin-top:10px;">
       ${brands.map((brand,bi)=>`
         <div class="brand-box">
@@ -1625,11 +1625,11 @@ function productTreeCategoryHtml(cat, ci){
             <span class="x" style="cursor:pointer;color:var(--danger);font-weight:700;font-size:12.5px;" onclick="removeBrand(${ci},${bi})">✕ ລຶບຍີ່ຫໍ້</span>
           </div>
           <div class="pill-row" style="margin-top:8px;">
-            ${(brandsObj[brand]||[]).map((m,mi)=>`<span class="pill">${esc(m)}<span class="x" onclick="removeModel(${ci},${bi},${mi})">✕</span></span>`).join('') || '<span class="section-sub" style="margin:0;">ຍັງບໍ່ມີຮຸ່ນ</span>'}
+            ${(brandsObj[brand]||[]).map((m,mi)=>`<span class="pill">${esc(m)}<span class="x" onclick="removeModel(${ci},${bi},${mi})">✕</span></span>`).join('') || '<span class="section-sub" style="margin:0;">ຍັງບໍ່ມີລຸ້ນ</span>'}
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;">
-            <input type="text" id="newmodel_${ci}_${bi}" placeholder="ເພີ່ມຮຸ່ນ ເຊັ່ນ: A07, A15" onkeydown="if(event.key==='Enter')addModel(${ci},${bi})">
-            <button class="btn btn-outline btn-sm" onclick="addModel(${ci},${bi})">ເພີ່ມຮຸ່ນ</button>
+            <input type="text" id="newmodel_${ci}_${bi}" placeholder="ເພີ່ມລຸ້ນ ເຊັ່ນ: A07, A15" onkeydown="if(event.key==='Enter')addModel(${ci},${bi})">
+            <button class="btn btn-outline btn-sm" onclick="addModel(${ci},${bi})">ເພີ່ມລຸ້ນ</button>
           </div>
         </div>`).join('')}
       <div style="display:flex;gap:8px;">
@@ -1651,7 +1651,7 @@ function removeBrand(ci, bi){
   const cat = CONFIG.category[ci];
   const brand = Object.keys(CONFIG.productTree[cat]||{})[bi];
   if(brand===undefined) return;
-  if(!confirm('ລຶບຍີ່ຫໍ້ "'+brand+'" ແລະຮຸ່ນທັງໝົດຂອງມັນ?')) return;
+  if(!confirm('ລຶບຍີ່ຫໍ້ "'+brand+'" ແລະລຸ້ນທັງໝົດຂອງມັນ?')) return;
   delete CONFIG.productTree[cat][brand];
   ptDirty = true; renderView('producttree');
 }
