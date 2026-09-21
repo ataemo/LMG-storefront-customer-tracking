@@ -652,7 +652,15 @@ function bindProductCascade(){
   }
   catSel.addEventListener('change', refreshBrands);
   brandSel.addEventListener('change', ()=>{ refreshModels(); if(brandSel.value) prodInput.value = brandSel.value; });
-  modelSel.addEventListener('change', ()=>{ if(brandSel.value && modelSel.value) prodInput.value = brandSel.value + ' ' + modelSel.value; });
+  modelSel.addEventListener('change', ()=>{
+    if(brandSel.value && modelSel.value) prodInput.value = brandSel.value + ' ' + modelSel.value;
+    const p = (CONFIG.productPrices||{})[catSel.value+'|'+brandSel.value+'|'+modelSel.value];
+    const priceInp = q('#f_price'), curSel = q('#f_currency');
+    if(p && priceInp && !Number(priceInp.value)){          // ຕື່ມສະເພາະຕອນຍັງບໍ່ໄດ້ໃສ່ລາຄາ
+      priceInp.value = p.price;
+      if(curSel && p.currency) curSel.value = p.currency;
+    }
+  });
   refreshBrands();
 
   // ຕອນແກ້ໄຂລາຍການເກົ່າ: ເລືອກຍີ່ຫໍ້/ຮຸ່ນຄືນໃຫ້ອັດຕະໂນມັດ
@@ -673,7 +681,7 @@ function computeDashboardStats(records){
     const cur = r['ສະກຸນເງິນ']||'KIP';
     const price = Number(r['ລາຄາ'])||0;
     const qty = Number(r['ຈຳນວນ'])||0;
-    stats.revenueByCurrency[cur] = (stats.revenueByCurrency[cur]||0) + price*(qty||1);
+    if(CLOSED_STATUSES.includes(r['Status ຊື້ຄ້າ'])) stats.revenueByCurrency[cur] = (stats.revenueByCurrency[cur]||0) + price*(qty||1);
     const st = r['Status ຊື້ຄ້າ']||'ບໍ່ລະບຸ';
     stats.byStatus[st] = (stats.byStatus[st]||0)+1;
     const ch = r['ຮູ້ຈັກ LMG ທາງໃດ']||'ບໍ່ລະບຸ';
