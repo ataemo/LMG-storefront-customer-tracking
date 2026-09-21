@@ -502,7 +502,7 @@ function applyBranding(b){
 /*** ================= STATE ================= ***/
 let CURRENT_USER = JSON.parse(sessionStorage.getItem('lmg_user') || 'null');
 let AUTH_TOKEN = sessionStorage.getItem('lmg_token') || null;
-let CONFIG = { category:[], channel:[], status:[], followUp:[], currency:[], branding:{}, productTree:{} };
+let CONFIG = { category:[], channel:[], status:[], followUp:[], department:[], currency:[], branding:{}, productTree:{} };
 let RECORDS = [];
 let DASHBOARD = {};
 let currentView = 'home';
@@ -584,8 +584,9 @@ function photoForStaffName(name){
 }
 const PERIOD_LABELS = { all:'ທັງໝົດ', today:'ມື້ນີ້', '7d':'7 ວັນຫຼ້າສຸດ', month:'ເດືອນນີ້', lastmonth:'ເດືອນແລ້ວ', custom:'📅 ກຳນົດເອງ (ຈາກ-ຫາ)' };
 
-function todayStr(){ return new Date().toISOString().slice(0,10); }
-function addDays_(dateStr, delta){ const d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+delta); return d.toISOString().slice(0,10); }
+function fmtLocalDate_(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function todayStr(){ return fmtLocalDate_(new Date()); }
+function addDays_(dateStr, delta){ const d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+delta); return fmtLocalDate_(d); }
 function monthKeyOf_(dateStr){ return String(dateStr||'').slice(0,7); }
 function shiftMonthKey_(ym, delta){ const [y,m]=ym.split('-').map(Number); const d=new Date(y, m-1+delta, 1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 
@@ -805,7 +806,7 @@ function renderView(view){
 
 /*** ================= HOME (Quick Entry) ================= ***/
 function viewHome(){
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayStr();
   const todayCount = RECORDS.filter(r=> String(r['ວັນທີ']).slice(0,10)===today).length;
   const myTotal = RECORDS.length;
   return `
@@ -836,13 +837,22 @@ function staffOptionsHtml(selected){
   return extra + optsHtml;
 }
 
+function deptOptionsHtml(selected){
+  const list = (CONFIG.department||[]).slice();
+  let extra = '';
+  if(selected && !list.includes(selected)){
+    extra = `<option value="${esc(selected)}" selected>${esc(selected)} (ຄ່າເກົ່າ)</option>`;
+  }
+  return extra + list.map(d=>`<option value="${esc(d)}" ${d===selected?'selected':''}>${esc(d)}</option>`).join('');
+}
+
 function recordFormHtml(r){
   r = r || {};
   const opt = (arr, val) => arr.map(v=>`<option value="${esc(v)}" ${v===val?'selected':''}>${esc(v)}</option>`).join('');
   const staffSelected = r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||CURRENT_USER.fullName;
   return `
   <div class="form-grid">
-    <div class="field"><label>ວັນທີ</label><input type="date" id="f_date" value="${r['ວັນທີ']? String(r['ວັນທີ']).slice(0,10) : new Date().toISOString().slice(0,10)}"></div>
+    <div class="field"><label>ວັນທີ</label><input type="date" id="f_date" value="${r['ວັນທີ']? String(r['ວັນທີ']).slice(0,10) : todayStr()}"></div>
     <div class="field"><label>ຊື່ພະນັກງານຮັບລູກຄ້າ</label><select id="f_staffName">${staffOptionsHtml(staffSelected)}</select></div>
     <div class="field"><label>ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ</label><input type="text" id="f_customerName" placeholder="ຊື່ລູກຄ້າ" value="${esc(r['ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ'])}"></div>
     <div class="field"><label>ເບີໂທຕິດຕໍ່</label><input type="text" id="f_phone" placeholder="020xxxxxxxx" value="${esc(r['ເບີໂທຕິດຕໍ່'])}"></div>
@@ -856,7 +866,7 @@ function recordFormHtml(r){
     <div class="field"><label>ສະກຸນເງິນ</label><select id="f_currency">${opt(CONFIG.currency, r['ສະກຸນເງິນ'])}</select></div>
     <div class="field full"><label>ລາຄາ</label><input type="number" id="f_price" min="0" placeholder="0" value="${r['ລາຄາ']||''}"></div>
     <div class="field"><label>Status ຊື້ຄ້າ</label><select id="f_status">${opt(CONFIG.status, r['Status ຊື້ຄ້າ'])}</select></div>
-    <div class="field"><label>ພະນັກງານຂາຍ</label><input type="text" id="f_salesStaff" placeholder="LMG" value="${esc(r['ພະນັກງານຂາຍ']||'LMG')}"></div>
+    <div class="field"><label>ພະນັກງານຂາຍ / ພະແນກ</label><select id="f_salesStaff">${deptOptionsHtml(r['ພະນັກງານຂາຍ'] || CURRENT_USER.department || 'LMG')}</select></div>
     <div class="field full"><label>Action ຕໍ່ໄປ</label><input type="text" id="f_action" placeholder="ຂັ້ນຕອນຕໍ່ໄປ" value="${esc(r['Action ຕໍ່ໄປ'])}"></div>
     <div class="field full"><label>ໝາຍເຫດ</label><textarea id="f_note" rows="2" placeholder="ບັນທຶກເພີ່ມເຕີມ">${esc(r['ໝາຍເຫດ'])}</textarea></div>
   </div>`;
@@ -1279,7 +1289,7 @@ function exportCSV(){
   const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'lmg_ລາຍງານລູກຄ້າ_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.href = url; a.download = 'lmg_ລາຍງານລູກຄ້າ_'+todayStr()+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast(ic('export')+' ດາວໂຫລດ CSV ສຳເລັດ ('+list.length+' ລາຍການ)');
@@ -1315,7 +1325,7 @@ function loadUsers(){
         </div>
         <div class="record-actions">
           <button class="iconbtn-sm" onclick="openUserModal('${esc(u.username)}')">${ic('edit')}</button>
-          ${u.username!=='admin' ? `<button class="iconbtn-sm del" onclick="confirmDeleteUser('${u.username}')">${ic('delete')}</button>` : ''}
+          ${u.username!=='admin' ? `<button class="iconbtn-sm del" onclick="confirmDeleteUser('${esc(u.username)}')">${ic('delete')}</button>` : ''}
         </div>
       </div>`).join('') || emptyHtml('ຍັງບໍ່ມີພະນັກງານ');
   }).withFailureHandler(onApiFail_).getUsers(CURRENT_USER.role);
@@ -1333,7 +1343,7 @@ function openUserModal(username){
         <option value="admin" ${editing&&u.role==='admin'?'selected':''}>Admin</option>
       </select>
     </div>
-    <div class="field"><label>ພະແນກ</label><input type="text" id="u_department" placeholder="ເຊັ່ນ: ຝ່າຍຂາຍ" value="${editing?esc(u.department||''):''}"></div>
+    <div class="field"><label>ພະແນກ</label><select id="u_department"><option value="">-- ບໍ່ລະບຸ --</option>${deptOptionsHtml(editing?(u.department||''):'')}</select></div>
     <div class="field">
       <label>ຮູບໂປຣໄຟລ໌ພະນັກງານ</label>
       <div class="logo-upload">
@@ -1421,7 +1431,8 @@ function viewSettings(){
   <div class="section-title" style="margin-bottom:14px;">${ic('settings')} ຕັ້ງຄ່າຕົວເລືອກໃນຟອມ</div>
   ${grp('ຮູ້ຈັກ LMG ທາງໃດ (ຊ່ອງທາງ)','channel')}
   ${grp('ປະເພດສິນຄ້າ','category')}
-  ${grp('Status ຊື້ຄ້າ','status')}
+  ${grp('Status ຊື້ສິນຄ້າ','status')}
+  ${grp('ພະແນກ (ພະນັກງານຂາຍ)','department')}
   ${grp('ສະກຸນເງິນ','currency')}
   <button class="btn btn-primary" id="btnSaveConfig">${ic('save')} ບັນທຶກການຕັ້ງຄ່າ</button>
   `;
@@ -1477,7 +1488,7 @@ function productTreeCategoryHtml(cat){
   </div>`;
 }
 function addBrand(cat){
-  const input = $('#newbrand_'+cat); const v = input.value.trim(); if(!v) return;
+  const input = document.getElementById('newbrand_'+cat); const v = input.value.trim(); if(!v) return;
   if(!CONFIG.productTree[cat]) CONFIG.productTree[cat] = {};
   if(!CONFIG.productTree[cat][v]) CONFIG.productTree[cat][v] = [];
   renderView('producttree');
@@ -1487,7 +1498,7 @@ function removeBrand(cat, brand){
   renderView('producttree');
 }
 function addModel(cat, brand){
-  const input = $('#newmodel_'+cat+'_'+brand); const v = input.value.trim(); if(!v) return;
+  const input = document.getElementById('newmodel_'+cat+'_'+brand); const v = input.value.trim(); if(!v) return;
   CONFIG.productTree[cat][brand].push(v);
   renderView('producttree');
 }
