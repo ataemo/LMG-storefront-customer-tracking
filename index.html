@@ -584,6 +584,13 @@ function photoForStaffName(name){
 }
 const PERIOD_LABELS = { all:'ທັງໝົດ', today:'ມື້ນີ້', '7d':'7 ວັນຫຼ້າສຸດ', month:'ເດືອນນີ້', lastmonth:'ເດືອນແລ້ວ', custom:'📅 ກຳນົດເອງ (ຈາກ-ຫາ)' };
 
+let ptDirty = false;
+function splitList_(s){ return Array.from(new Set(String(s||'').split(/[,\n]/).map(x=>x.trim()).filter(Boolean))); }
+
+// ສະຖານະທີ່ນັບວ່າ "ປິດການຂາຍ" (ແກ້ບັກ 3 ຂ້າງລຸ່ມ)
+const CLOSED_STATUSES = ['ຊື້ແລ້ວ','ປິດການຂາຍ'];
+function countClosed_(byStatus){ return CLOSED_STATUSES.reduce((n,s)=> n + ((byStatus && byStatus[s]) || 0), 0); }
+
 function fmtLocalDate_(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function todayStr(){ return fmtLocalDate_(new Date()); }
 function addDays_(dateStr, delta){ const d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+delta); return fmtLocalDate_(d); }
@@ -626,23 +633,38 @@ function modelsForBrand(cat, brand){ return (CONFIG.productTree && CONFIG.produc
 
 // ຜູກ dropdown ຍີ່ຫໍ້/ຮຸ່ນ ໃນຟອມບັນທຶກລູກຄ້າ ໃຫ້ເຄື່ອນໄຫວຕາມກັນ
 function bindProductCascade(){
-  const catSel = $('#f_category'), brandSel = $('#f_brand'), modelSel = $('#f_model'), prodInput = $('#f_product');
+  const root = document.querySelector('#modalOverlay.show') || document;
+  const q = s => root.querySelector(s);
+  const catSel = q('#f_category'), brandSel = q('#f_brand'), modelSel = q('#f_model'), prodInput = q('#f_product');
   if(!catSel || !brandSel || !modelSel) return;
-  function refreshBrands(){
-    const brands = brandsForCategory(catSel.value);
-    brandSel.innerHTML = '<option value="">-- ເລືອກຍີ່ຫໍ້ --</option>' + brands.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');
-    modelSel.innerHTML = '<option value="">-- ເລືອກຮຸ່ນ --</option>';
-  }
+
   function refreshModels(){
     const models = modelsForBrand(catSel.value, brandSel.value);
     modelSel.innerHTML = '<option value="">-- ເລືອກຮຸ່ນ --</option>' + models.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+    modelSel.disabled = !models.length;
+  }
+  function refreshBrands(){
+    const brands = brandsForCategory(catSel.value);
+    brandSel.innerHTML = (brands.length ? '<option value="">-- ເລືອກຍີ່ຫໍ້ --</option>' : '<option value="">(ຍັງບໍ່ມີຍີ່ຫໍ້ — ພິມຊື່ສິນຄ້າເອງໄດ້)</option>')
+      + brands.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('');
+    brandSel.disabled = !brands.length;
+    refreshModels();
   }
   catSel.addEventListener('change', refreshBrands);
-  brandSel.addEventListener('change', refreshModels);
-  modelSel.addEventListener('change', ()=>{
-    if(brandSel.value && modelSel.value) prodInput.value = brandSel.value + ' ' + modelSel.value;
-  });
+  brandSel.addEventListener('change', ()=>{ refreshModels(); if(brandSel.value) prodInput.value = brandSel.value; });
+  modelSel.addEventListener('change', ()=>{ if(brandSel.value && modelSel.value) prodInput.value = brandSel.value + ' ' + modelSel.value; });
   refreshBrands();
+
+  // ຕອນແກ້ໄຂລາຍການເກົ່າ: ເລືອກຍີ່ຫໍ້/ຮຸ່ນຄືນໃຫ້ອັດຕະໂນມັດ
+  const cur = (prodInput.value || '').trim();
+  if(cur){
+    const b = brandsForCategory(catSel.value).find(x => cur === x || cur.startsWith(x + ' '));
+    if(b){
+      brandSel.value = b; refreshModels();
+      const rest = cur.slice(b.length).trim();
+      if(rest && modelsForBrand(catSel.value, b).includes(rest)) modelSel.value = rest;
+    }
+  }
 }
 
 function computeDashboardStats(records){
@@ -786,6 +808,10 @@ function renderView(view){
     }
     configDirty = false;
   }
+  if(currentView==='producttree' && ptDirty && view!=='producttree'){
+    if(!confirm('ທ່ານຍັງບໍ່ໄດ້ບັນທຶກລາຍການສິນຄ້າ. ຕ້ອງການອອກໂດຍບໍ່ບັນທຶກແທ້ບໍ?')) return;
+    ptDirty = false;
+  }
   currentView = view;
   $all('.drawer-item').forEach(el=> el.classList.toggle('active', el.dataset.view===view));
   $all('.bottom-nav-item').forEach(el=> el.classList.toggle('active', el.dataset.view===view));
@@ -873,12 +899,14 @@ function recordFormHtml(r){
 }
 
 function collectFormPayload(){
+  const root = document.querySelector('#modalOverlay.show') || document;
+  const v = s => (root.querySelector(s) || {}).value || '';
   return {
-    date: $('#f_date').value, staffName: $('#f_staffName').value, customerName: $('#f_customerName').value,
-    phone: $('#f_phone').value, invoice: $('#f_invoice').value, followUp: '',
-    channel: $('#f_channel').value, category: $('#f_category').value, product: $('#f_product').value,
-    qty: Number($('#f_qty').value)||0, currency: $('#f_currency').value, price: Number($('#f_price').value)||0,
-    status: $('#f_status').value, salesStaff: $('#f_salesStaff').value, action: $('#f_action').value, note: $('#f_note').value
+    date: v('#f_date'), staffName: v('#f_staffName'), customerName: v('#f_customerName'),
+    phone: v('#f_phone'), invoice: v('#f_invoice'), followUp: '',
+    channel: v('#f_channel'), category: v('#f_category'), product: v('#f_product'),
+    qty: Number(v('#f_qty'))||0, currency: v('#f_currency'), price: Number(v('#f_price'))||0,
+    status: v('#f_status'), salesStaff: v('#f_salesStaff'), action: v('#f_action'), note: v('#f_note')
   };
 }
 
@@ -1062,7 +1090,7 @@ function viewDashboard(){
   DASH_STATS = computeDashboardStats(filtered);
   const total = DASH_STATS.total||0;
   const revStr = Object.entries(DASH_STATS.revenueByCurrency||{}).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
-  const closedPct = pctOf((DASH_STATS.byStatus&&DASH_STATS.byStatus['ຊື້ແລ້ວ'])||0, total);
+  const closedPct = pctOf(countClosed_(DASH_STATS.byStatus), total);
   const dateEntries = Object.entries(DASH_STATS.byDate||{}).sort((a,b)=>a[0]<b[0]?-1:1);
   const maxDay = dateEntries.reduce((m,e)=> e[1]>m.v ? {d:e[0],v:e[1]} : m, {d:'-',v:0});
   const avgPerDay = dateEntries.length ? Math.round(total/dateEntries.length) : 0;
@@ -1073,7 +1101,7 @@ function viewDashboard(){
   const weekDeltaText = last7.length>=2
     ? (weekDelta>=0 ? `📈 ເພີ່ມຂຶ້ນ ${weekDelta} ລູກຄ້າ` : `📉 ຫຼຸດລົງ ${Math.abs(weekDelta)} ລູກຄ້າ`) + ' ໃນຮອບ 7 ວັນ'
     : 'ຍັງບໍ່ພຽງພໍຂໍ້ມູນ';
-  const closedCount = (DASH_STATS.byStatus&&DASH_STATS.byStatus['ຊື້ແລ້ວ'])||0;
+  const closedCount = countClosed_(DASH_STATS.byStatus);
   const growth = computeMonthGrowth(filterRecordsByYear(RECORDS, dashboardYear));
   const growthUp = growth.pct>=0;
 
@@ -1122,7 +1150,7 @@ function viewDashboard(){
     <div class="mini-card">
       <div class="mini-title">ອັດຕາການປິດການຂາຍ</div>
       <div class="donut-wrap"><canvas id="chartClose"></canvas>
-        <div class="donut-center"><div class="pct">${closedPct}%</div><div class="sub">ຊື້ແລ້ວ</div></div>
+        <div class="donut-center"><div class="pct">${closedPct}%</div><div class="sub">ປິດການຂາຍ</div></div>
       </div>
       <div class="mini-foot">${closedCount} / ${total} ລາຍການ</div>
     </div>
@@ -1179,9 +1207,9 @@ function drawCharts(){
   const closeEl = document.getElementById('chartClose');
   if(closeEl){
     destroyChart_('close');
-    const closed = (DASH_STATS.byStatus&&DASH_STATS.byStatus['ຊື້ແລ້ວ'])||0;
+    const closed = countClosed_(DASH_STATS.byStatus);
     const rest = Math.max((DASH_STATS.total||0)-closed,0);
-    CHART_INSTANCES['close'] = new Chart(closeEl,{ type:'doughnut', data:{ labels:['ຊື້ແລ້ວ','ອື່ນໆ'], datasets:[{ data:[closed,rest||1], backgroundColor:[BRAND.colorAccent,'#efeaf9'], borderWidth:0 }] },
+    CHART_INSTANCES['close'] = new Chart(closeEl,{ type:'doughnut', data:{ labels:['ປິດການຂາຍ','ອື່ນໆ'], datasets:[{ data:[closed,rest||1], backgroundColor:[BRAND.colorAccent,'#efeaf9'], borderWidth:0 }] },
       options:{ responsive:true, maintainAspectRatio:false, cutout:'74%', plugins:{ legend:{display:false}, tooltip:{enabled:true} } } });
   }
 
@@ -1289,7 +1317,7 @@ function exportCSV(){
   const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'lmg_ລາຍງານລູກຄ້າ_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.href = url; a.download = 'lmg_ລາຍງານລູກຄ້າ_'+todayStr()+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast(ic('export')+' ດາວໂຫລດ CSV ສຳເລັດ ('+list.length+' ລາຍການ)');
@@ -1431,6 +1459,11 @@ function viewSettings(){
   <div class="section-title" style="margin-bottom:14px;">${ic('settings')} ຕັ້ງຄ່າຕົວເລືອກໃນຟອມ</div>
   ${grp('ຮູ້ຈັກ LMG ທາງໃດ (ຊ່ອງທາງ)','channel')}
   ${grp('ປະເພດສິນຄ້າ','category')}
+  <div class="card">
+    <div class="section-title" style="font-size:14.5px;">🏷️ ຍີ່ຫໍ້ ແລະ ຮຸ່ນ (Brand / Model)</div>
+    <div class="section-sub" style="margin-top:4px;">ເພີ່ມຍີ່ຫໍ້ ແລະ ຮຸ່ນ ຂອງແຕ່ລະປະເພດສິນຄ້າ ໃຫ້ພະນັກງານເລືອກໃນຟອມ</div>
+    <button class="btn btn-outline btn-sm" onclick="renderView('producttree')">📦 ເປີດໜ້າຈັດການຍີ່ຫໍ້ / ຮຸ່ນ</button>
+  </div>
   ${grp('Status ຊື້ສິນຄ້າ','status')}
   ${grp('ພະແນກ (ພະນັກງານຂາຍ)','department')}
   ${grp('ສະກຸນເງິນ','currency')}
@@ -1454,57 +1487,72 @@ function viewProductTree(){
   const cats = CONFIG.category || [];
   return `
   <div class="section-title" style="margin-bottom:4px;">📦 ຈັດການສິນຄ້າ (ຍີ່ຫໍ້ / ຮຸ່ນ)</div>
-  <div class="section-sub">ເລືອກໝວດ ແລ້ວເພີ່ມຍີ່ຫໍ້ ແລະ ຮຸ່ນ ໃຫ້ພະນັກງານເລືອກໃນຟອມ ໜ້າຫຼັກ</div>
-  ${cats.length ? cats.map(productTreeCategoryHtml).join('') : emptyHtml('ຍັງບໍ່ມີໝວດສິນຄ້າ, ໄປເພີ່ມທີ່ໜ້າ "ຕັ້ງຄ່າຕົວເລືອກ" ກ່ອນ')}
+  <div class="section-sub">ເພີ່ມຍີ່ຫໍ້ ແລະ ຮຸ່ນ ຂອງແຕ່ລະໝວດ ແລ້ວກົດ "ບັນທຶກ" ທ້າຍໜ້າ. ພິມຫຼາຍອັນພ້ອມກັນໄດ້ ໂດຍຂັ້ນດ້ວຍເຄື່ອງໝາຍ , (ເຊັ່ນ: A07, A15, A55)</div>
+  ${cats.length ? cats.map((c,ci)=>productTreeCategoryHtml(c,ci)).join('') : emptyHtml('ຍັງບໍ່ມີໝວດສິນຄ້າ, ໄປເພີ່ມທີ່ໜ້າ "ຕັ້ງຄ່າຕົວເລືອກ" ກ່ອນ')}
   ${cats.length ? `<button class="btn btn-primary" id="btnSaveProductTree">${ic('save')} ບັນທຶກລາຍການສິນຄ້າ</button>` : ''}
   `;
 }
-function productTreeCategoryHtml(cat){
+function productTreeCategoryHtml(cat, ci){
   const brandsObj = CONFIG.productTree[cat] || {};
   const brands = Object.keys(brandsObj);
+  const totalModels = brands.reduce((n,b)=> n + (brandsObj[b]||[]).length, 0);
   return `
   <div class="card">
-    <div class="section-title" style="font-size:14.5px;">📁 ${esc(cat)}</div>
+    <div class="section-title" style="font-size:14.5px;">📁 ${esc(cat)} <span class="badge">${brands.length} ຍີ່ຫໍ້ · ${totalModels} ຮຸ່ນ</span></div>
     <div style="margin-top:10px;">
-      ${brands.map(brand=>`
+      ${brands.map((brand,bi)=>`
         <div class="brand-box">
           <div class="brand-box-head">
             <strong style="font-size:13.5px;">🏷️ ${esc(brand)}</strong>
-            <span class="x" style="cursor:pointer;color:var(--danger);font-weight:700;font-size:12.5px;" onclick="removeBrand('${esc(cat)}','${esc(brand)}')">✕ ລຶບຍີ່ຫໍ້</span>
+            <span class="x" style="cursor:pointer;color:var(--danger);font-weight:700;font-size:12.5px;" onclick="removeBrand(${ci},${bi})">✕ ລຶບຍີ່ຫໍ້</span>
           </div>
           <div class="pill-row" style="margin-top:8px;">
-            ${(brandsObj[brand]||[]).map((m,i)=>`<span class="pill">${esc(m)}<span class="x" onclick="removeModel('${esc(cat)}','${esc(brand)}',${i})">✕</span></span>`).join('') || '<span class="section-sub" style="margin:0;">ຍັງບໍ່ມີຮຸ່ນ</span>'}
+            ${(brandsObj[brand]||[]).map((m,mi)=>`<span class="pill">${esc(m)}<span class="x" onclick="removeModel(${ci},${bi},${mi})">✕</span></span>`).join('') || '<span class="section-sub" style="margin:0;">ຍັງບໍ່ມີຮຸ່ນ</span>'}
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;">
-            <input type="text" id="newmodel_${esc(cat)}_${esc(brand)}" placeholder="ເພີ່ມຮຸ່ນໃໝ່ ເຊັ່ນ: A07">
-            <button class="btn btn-outline btn-sm" onclick="addModel('${esc(cat)}','${esc(brand)}')">ເພີ່ມຮຸ່ນ</button>
+            <input type="text" id="newmodel_${ci}_${bi}" placeholder="ເພີ່ມຮຸ່ນ ເຊັ່ນ: A07, A15" onkeydown="if(event.key==='Enter')addModel(${ci},${bi})">
+            <button class="btn btn-outline btn-sm" onclick="addModel(${ci},${bi})">ເພີ່ມຮຸ່ນ</button>
           </div>
         </div>`).join('')}
       <div style="display:flex;gap:8px;">
-        <input type="text" id="newbrand_${esc(cat)}" placeholder="ເພີ່ມຍີ່ຫໍ້ໃໝ່ ເຊັ່ນ: Samsung">
-        <button class="btn btn-outline btn-sm" onclick="addBrand('${esc(cat)}')">ເພີ່ມຍີ່ຫໍ້</button>
+        <input type="text" id="newbrand_${ci}" placeholder="ເພີ່ມຍີ່ຫໍ້ ເຊັ່ນ: Samsung, Apple" onkeydown="if(event.key==='Enter')addBrand(${ci})">
+        <button class="btn btn-outline btn-sm" onclick="addBrand(${ci})">ເພີ່ມຍີ່ຫໍ້</button>
       </div>
     </div>
   </div>`;
 }
-function addBrand(cat){
-  const input = document.getElementById('newbrand_'+cat); const v = input.value.trim(); if(!v) return;
+function addBrand(ci){
+  const cat = CONFIG.category[ci];
+  const names = splitList_(document.getElementById('newbrand_'+ci).value);
+  if(!names.length) return;
   if(!CONFIG.productTree[cat]) CONFIG.productTree[cat] = {};
-  if(!CONFIG.productTree[cat][v]) CONFIG.productTree[cat][v] = [];
-  renderView('producttree');
+  names.forEach(n=>{ if(!CONFIG.productTree[cat][n]) CONFIG.productTree[cat][n] = []; });
+  ptDirty = true; renderView('producttree');
 }
-function removeBrand(cat, brand){
-  if(CONFIG.productTree[cat]) delete CONFIG.productTree[cat][brand];
-  renderView('producttree');
+function removeBrand(ci, bi){
+  const cat = CONFIG.category[ci];
+  const brand = Object.keys(CONFIG.productTree[cat]||{})[bi];
+  if(brand===undefined) return;
+  if(!confirm('ລຶບຍີ່ຫໍ້ "'+brand+'" ແລະຮຸ່ນທັງໝົດຂອງມັນ?')) return;
+  delete CONFIG.productTree[cat][brand];
+  ptDirty = true; renderView('producttree');
 }
-function addModel(cat, brand){
-  const input = document.getElementById('newmodel_'+cat+'_'+brand); const v = input.value.trim(); if(!v) return;
-  CONFIG.productTree[cat][brand].push(v);
-  renderView('producttree');
+function addModel(ci, bi){
+  const cat = CONFIG.category[ci];
+  const brand = Object.keys(CONFIG.productTree[cat]||{})[bi];
+  if(brand===undefined) return;
+  const names = splitList_(document.getElementById('newmodel_'+ci+'_'+bi).value);
+  if(!names.length) return;
+  const list = CONFIG.productTree[cat][brand];
+  names.forEach(n=>{ if(!list.includes(n)) list.push(n); });
+  ptDirty = true; renderView('producttree');
 }
-function removeModel(cat, brand, idx){
-  CONFIG.productTree[cat][brand].splice(idx,1);
-  renderView('producttree');
+function removeModel(ci, bi, mi){
+  const cat = CONFIG.category[ci];
+  const brand = Object.keys(CONFIG.productTree[cat]||{})[bi];
+  if(brand===undefined) return;
+  CONFIG.productTree[cat][brand].splice(mi,1);
+  ptDirty = true; renderView('producttree');
 }
 
 /*** ================= ADMIN: BRANDING (ตกแต่งแอป) ================= ***/
@@ -1780,7 +1828,7 @@ function afterRender(view){
         btnSavePT.disabled = true; btnSavePT.textContent = 'ກຳລັງບັນທຶກ...';
         google.script.run.withSuccessHandler(res=>{
           btnSavePT.disabled = false; btnSavePT.innerHTML = ic('save')+' ບັນທຶກລາຍການສິນຄ້າ';
-          if(res.success) showToast(ic('ok')+' ບັນທຶກລາຍການສິນຄ້າສຳເລັດ');
+          if(res.success){ ptDirty = false; showToast(ic('ok')+' ບັນທຶກລາຍການສິນຄ້າສຳເລັດ'); }
           else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
         }).withFailureHandler(err=>{
           btnSavePT.disabled = false; btnSavePT.innerHTML = ic('save')+' ບັນທຶກລາຍການສິນຄ້າ';
