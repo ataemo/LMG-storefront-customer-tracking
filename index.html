@@ -16,6 +16,7 @@
 <!-- iOS / Safari -->
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LMG Store">
 
@@ -394,7 +395,8 @@ a{text-decoration:none;color:inherit;}
     <div class="drawer-item" data-view="settings" id="navSettings" style="display:none;"><span class="ic" data-icon="settings">⚙️</span> ຕັ້ງຄ່າຕົວເລືອກ</div>
     <div class="drawer-item" data-view="branding" id="navBranding" style="display:none;"><span class="ic" data-icon="branding">🎨</span> ຕົກແຕ່ງແອັບ</div>
     <div class="drawer-item" data-view="producttree" id="navProductTree" style="display:none;">📦 ຈັດການສິນຄ້າ</div>
-    <div class="drawer-item" data-view="profile"><span class="ic" data-icon="profile">🔑</span> ປ່ຽນລະຫັດຜ່ານ</div>
+    <div class="drawer-item" data-view="activitylog" id="navActivityLog" style="display:none;">📜 ປະຫວັດການເຄື່ອນໄຫວ</div>
+    <div class="drawer-item" data-view="profile" id="navProfile" style="display:none;"><span class="ic" data-icon="profile">🔑</span> ປ່ຽນລະຫັດຜ່ານ</div>
   </div>
   <div class="drawer-foot">
     <button class="btn btn-danger" id="btnLogout"><span data-icon="logout">🚪</span> ອອກຈາກລະບົບ</button>
@@ -826,13 +828,17 @@ function bootApp(){
     $('#app').style.display='block';
     $('#drawerName').textContent = CURRENT_USER.fullName || CURRENT_USER.username;
     $('#drawerAvatar').innerHTML = avatarHtml(CURRENT_USER.fullName||CURRENT_USER.username, CURRENT_USER.photo, 44);
-    $('#drawerRole').textContent = CURRENT_USER.role==='admin' ? 'ຜູ້ດູແລລະບົບ (Admin)' : 'ພະນັກງານ';
+    $('#drawerRole').textContent = CURRENT_USER.role==='admin' ? 'ຜູ້ດູແລລະບົບ (Admin)'
+      : CURRENT_USER.role==='manager' ? 'ຫົວໜ້າພະແນກ ('+(CURRENT_USER.department||'-')+')'
+      : 'ພະນັກງານ';
     if(CURRENT_USER.role==='admin'){
       $('#adminSep').style.display='block';
       $('#navUsers').style.display='flex';
       $('#navSettings').style.display='flex';
       $('#navBranding').style.display='flex';
       $('#navProductTree').style.display='flex';
+      $('#navActivityLog').style.display='flex';
+      $('#navProfile').style.display='flex';
     }
     refreshStaffList(()=> renderView('home'));
   }).withFailureHandler(err=>{
@@ -901,6 +907,7 @@ function renderView(view){
   else if(view==='settings') wrap.innerHTML = viewSettings();
   else if(view==='branding') wrap.innerHTML = viewBranding();
   else if(view==='producttree') wrap.innerHTML = viewProductTree();
+  else if(view==='activitylog') wrap.innerHTML = viewActivityLog();
   else if(view==='profile') wrap.innerHTML = viewProfile();
   $all('[data-icon]').forEach(el=>{ el.textContent = ic(el.dataset.icon); });
   afterRender(view);
@@ -914,7 +921,10 @@ function viewHome(){
   return `
   <div class="stat-grid">
     <div class="stat-card accent"><div class="val">${todayCount}</div><div class="lbl">ລູກຄ້າມື້ນີ້</div></div>
-    <div class="stat-card gold"><div class="val">${myTotal}</div><div class="lbl">${CURRENT_USER.role==='admin'?'ຍອດລວມທັງໝົດ':'ຍອດຂອງຂ້ອຍ'}</div></div>
+    <div class="stat-card gold"><div class="val">${myTotal}</div><div class="lbl">${
+      CURRENT_USER.role==='admin' ? 'ຍອດລວມທັງໝົດ' :
+      CURRENT_USER.role==='manager' ? 'ຍອດຂອງພະແນກ' : 'ຍອດຂອງຂ້ອຍ'
+    }</div></div>
   </div>
   <div class="card">
     <div class="section-title gold-underline">${ic('add')} ບັນທຶກລູກຄ້າໃໝ່</div>
@@ -969,7 +979,9 @@ function recordFormHtml(r){
     <div class="field"><label>ສະກຸນເງິນ</label><select id="f_currency">${opt(CONFIG.currency, r['ສະກຸນເງິນ'])}</select></div>
     <div class="field full"><label>ລາຄາ</label><input type="number" id="f_price" min="0" placeholder="0" value="${r['ລາຄາ']||''}"></div>
     <div class="field"><label>Status ຊື້ສິນຄ້າ</label><select id="f_status">${opt(CONFIG.status, r['Status ຊື້ສິນຄ້າ'])}</select></div>
-    <div class="field"><label>ພະນັກງານຂາຍ / ພະແນກ</label><select id="f_salesStaff">${deptOptionsHtml(r['ພະນັກງານຂາຍ'] || CURRENT_USER.department || 'LMG')}</select></div>
+    <div class="field"><label>ພະນັກງານຂາຍ / ພະແນກ</label>
+      <select id="f_salesStaff" ${CURRENT_USER.role==='admin' ? '' : 'disabled'}>${deptOptionsHtml(r['ພະນັກງານຂາຍ'] || CURRENT_USER.department || 'LMG')}</select>
+    </div>
     <div class="field full"><label>Action ຕໍ່ໄປ</label><input type="text" id="f_action" placeholder="ຂັ້ນຕອນຕໍ່ໄປ" value="${esc(r['Action ຕໍ່ໄປ'])}"></div>
     <div class="field full"><label>ໝາຍເຫດ</label><textarea id="f_note" rows="2" placeholder="ບັນທຶກເພີ່ມເຕີມ">${esc(r['ໝາຍເຫດ'])}</textarea></div>
   </div>`;
@@ -1170,7 +1182,9 @@ function saveHomeForm(){
 
 /*** ================= RECORDS LIST ================= ***/
 function recordItemHtml(r){
-  const canEdit = CURRENT_USER.role==='admin' || r['ຜູ້ບັນທຶກ(Username)']===CURRENT_USER.username;
+  const canEdit = CURRENT_USER.role==='admin'
+    || r['ຜູ້ບັນທຶກ(Username)']===CURRENT_USER.username
+    || (CURRENT_USER.role==='manager' && r['ພະນັກງານຂາຍ']===CURRENT_USER.department);
   const staffName = r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)'];
   return `
   <div class="record-item">
@@ -1192,7 +1206,7 @@ function recordItemHtml(r){
     ${canEdit ? `
     <div class="record-actions">
       <button class="iconbtn-sm" data-action="edit-record" data-id="${esc(r['ID'])}">${ic('edit')}</button>
-      ${CURRENT_USER.role==='admin' ? `<button class="iconbtn-sm del" data-action="delete-record" data-id="${esc(r['ID'])}">${ic('delete')}</button>` : ''}
+      ${(CURRENT_USER.role==='admin' || (CURRENT_USER.role==='manager' && r['ພະນັກງານຂາຍ']===CURRENT_USER.department)) ? `<button class="iconbtn-sm del" data-action="delete-record" data-id="${esc(r['ID'])}">${ic('delete')}</button>` : ''}
     </div>` : ''}
   </div>`;
 }
@@ -1202,7 +1216,11 @@ function emptyHtml(msg){ return `<div class="empty-state"><div class="ic">🗂�
 function viewRecords(){
   return `
   <div class="card">
-    <div class="section-title">${ic('records')} ລາຍການລູກຄ້າ${CURRENT_USER.role==='admin'?'ທັງໝົດ':'ຂອງຂ້ອຍ'}</div>
+    <div class="section-title">${ic('records')} ລາຍການລູກຄ້າ${
+      CURRENT_USER.role==='admin' ? 'ທັງໝົດ' :
+      CURRENT_USER.role==='manager' ? ' ພະແນກ '+(CURRENT_USER.department||'') :
+      'ຂອງຂ້ອຍ'
+    }</div>
     <div class="section-sub" id="recordsCountLabel">ທັງໝົດ ${RECORDS.length} ລາຍການ</div>
     <div class="searchbar"><input type="text" id="searchInput" placeholder="${ic('search')} ຄົ້ນຫາຊື່ລູກຄ້າ, ເບີໂທ, ສິນຄ້າ..." value="${esc(recordFilterQuery)}"></div>
     <div class="custom-range-row" style="margin-bottom:12px;">
@@ -1677,6 +1695,7 @@ function openUserModal(username){
     <div class="field"><label>ສິດ (Role)</label>
       <select id="u_role">
         <option value="employee" ${editing&&u.role==='employee'?'selected':''}>ພະນັກງານ</option>
+        <option value="manager" ${editing&&u.role==='manager'?'selected':''}>ຫົວໜ້າພະແນກ (Manager)</option>
         <option value="admin" ${editing&&u.role==='admin'?'selected':''}>Admin</option>
       </select>
     </div>
@@ -2051,6 +2070,39 @@ function compressImageToDataUrl_(file, maxW, maxH, quality){
   });
 }
 
+/*** ================= ADMIN: ACTIVITY LOG ================= ***/
+function viewActivityLog(){
+  return `
+  <div class="card">
+    <div class="section-title">📜 ປະຫວັດການເຄື່ອນໄຫວ (Activity Log)</div>
+    <div class="section-sub">ບັນທຶກການ ເພີ່ມ / ແກ້ໄຂ / ລຶບ ຂໍ້ມູນລູກຄ້າ ຂອງທຸກຄົນ (ສະແດງ 200 ລາຍການລ່າສຸດ)</div>
+    <button class="btn btn-outline btn-sm" id="btnRefreshLog" style="margin-bottom:12px;">🔄 ໂຫລດຄືນໃໝ່</button>
+    <div id="activityLogArea">${emptyHtml('ກຳລັງໂຫລດ...')}</div>
+  </div>`;
+}
+function loadActivityLog(){
+  const area = $('#activityLogArea');
+  if(area) area.innerHTML = emptyHtml('ກຳລັງໂຫລດ...');
+  google.script.run.withSuccessHandler(list=>{
+    const area = $('#activityLogArea'); if(!area) return;
+    if(!list || !list.length){ area.innerHTML = emptyHtml('ຍັງບໍ່ມີປະຫວັດ'); return; }
+    const actionIcon = a => a.includes('ເພີ່ມ') ? '➕' : a.includes('ລຶບ') ? '🗑️' : '✏️';
+    area.innerHTML = `<div style="overflow-x:auto;border-radius:14px;border:1px solid var(--border);"><table class="report-table">
+      <thead><tr><th>ເວລາ</th><th>ຜູ້ເຮັດ</th><th>ສິດ</th><th>ການກະທຳ</th><th>ລູກຄ້າ</th><th>ລາຍລະອຽດ</th></tr></thead>
+      <tbody>${list.map(a=>`<tr>
+        <td>${esc(a['ເວລາ(Timestamp)'])}</td>
+        <td>${esc(a['ຊື່ເຕັມ']||a['Username'])}</td>
+        <td>${esc(a['ສິດ(Role)'])}</td>
+        <td>${actionIcon(a['ການກະທຳ(Action)']||'')} ${esc(a['ການກະທຳ(Action)'])}</td>
+        <td>${esc(a['ຊື່ລູກຄ້າ'])}</td>
+        <td>${esc(a['ລາຍລະອຽດ'])}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }).withFailureHandler(err=>{
+    const area = $('#activityLogArea'); if(area) area.innerHTML = emptyHtml('ໂຫລດບໍ່ໄດ້: '+((err&&err.message)||'error'));
+  }).getActivityLog(200);
+}
+
 /*** ================= PROFILE (change password) ================= ***/
 function viewProfile(){
   return `
@@ -2177,6 +2229,10 @@ function afterRender(view){
         }).updateProductTree(CONFIG.productTree, CURRENT_USER.role);
       });
     }
+  }
+  if(view==='activitylog'){
+    loadActivityLog();
+    $('#btnRefreshLog').addEventListener('click', loadActivityLog);
   }
   if(view==='profile'){
     $('#btnChangePw').addEventListener('click', ()=>{
