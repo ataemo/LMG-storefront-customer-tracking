@@ -511,6 +511,14 @@ let recordFilterQuery = '';
 let reportFilterQuery = '';
 let reportCustomFrom = '';
 let reportCustomTo = '';
+let recordsCustomFrom = '';
+let recordsCustomTo = '';
+let recordsMonthFilter = '';
+let recordsDeptFilter = '';
+let recordsPage = 1;
+const RECORDS_PAGE_SIZE = 20;
+let reportMonthFilter = '';
+let reportDeptFilter = '';
 let brandingDraft = null;
 let dashboardPeriod = 'all';
 let dashboardYear = 'all';
@@ -530,6 +538,14 @@ document.addEventListener('click', (e)=>{
   if(editBtn){ openRecordModal(editBtn.dataset.id); return; }
   const delBtn = e.target.closest('[data-action="delete-record"]');
   if(delBtn){ confirmDelete(delBtn.dataset.id); return; }
+  const pageBtn = e.target.closest('[data-page-action]');
+  if(pageBtn){
+    const totalPages = Number(pageBtn.dataset.totalPages)||1;
+    if(pageBtn.dataset.pageAction==='prev') recordsPage = Math.max(1, recordsPage-1);
+    else if(pageBtn.dataset.pageAction==='next') recordsPage = Math.min(totalPages, recordsPage+1);
+    $('#recordListArea').innerHTML = renderRecordList();
+    return;
+  }
 });
 
 /*** ================= HELPERS ================= ***/
@@ -574,13 +590,17 @@ function buildStaffDirectory(users){
   (users||[]).forEach(u=>{
     const nameKey = String(u.fullName||'').trim().toLowerCase();
     const userKey = String(u.username||'').trim().toLowerCase();
-    if(nameKey) STAFF_DIRECTORY[nameKey] = { photo: u.photo, username: u.username };
-    if(userKey) STAFF_DIRECTORY[userKey] = { photo: u.photo, username: u.username };
+    if(nameKey) STAFF_DIRECTORY[nameKey] = { photo: u.photo, username: u.username, department: u.department||'' };
+    if(userKey) STAFF_DIRECTORY[userKey] = { photo: u.photo, username: u.username, department: u.department||'' };
   });
 }
 function photoForStaffName(name){
   const key = String(name||'').trim().toLowerCase();
   return (STAFF_DIRECTORY[key] && STAFF_DIRECTORY[key].photo) || '';
+}
+function deptForStaffName(name){
+  const key = String(name||'').trim().toLowerCase();
+  return (STAFF_DIRECTORY[key] && STAFF_DIRECTORY[key].department) || '';
 }
 const PERIOD_LABELS = { all:'ທັງໝົດ', today:'ມື້ນີ້', '7d':'7 ວັນຫຼ້າສຸດ', month:'ເດືອນນີ້', lastmonth:'ເດືອນແລ້ວ', custom:'📅 ກຳນົດເອງ (ຈາກ-ຫາ)' };
 
@@ -619,6 +639,14 @@ function getAvailableYears(){
   years.add(String(new Date().getFullYear())); // ໃຫ້ປີປັດຈຸບັນສະແດງສະເໝີ ເຖິງຈະຍັງບໍ່ມີຂໍ້ມູນ
   return Array.from(years).sort((a,b)=> b.localeCompare(a)); // ໃໝ່ສຸດຢູ່ໜ້າ
 }
+
+function getAvailableMonths(){
+  const months = new Set();
+  RECORDS.forEach(r=>{ const m = monthKeyOf_(r['ວັນທີ']); if(m && m.length===7) months.add(m); });
+  months.add(monthKeyOf_(todayStr()));
+  return Array.from(months).sort((a,b)=> b.localeCompare(a));
+}
+
 function filterRecordsByYear(records, year){
   if(!year || year==='all') return records;
   return records.filter(r=> String(r['ວັນທີ']||'').slice(0,4) === year);
@@ -906,6 +934,24 @@ function recordFormHtml(r){
   </div>`;
 }
 
+function findDuplicateRecord_(payload, excludeId){
+  const invoice = String(payload.invoice||'').trim();
+  const phone = String(payload.phone||'').trim();
+  if(!invoice && !phone) return null;
+  return RECORDS.find(r=>{
+    if(excludeId && r['ID']===excludeId) return false;
+    const sameInvoice = invoice && String(r['ເລກທີ Invoice']||'').trim()===invoice;
+    const samePhone = phone && String(r['ເບີໂທຕິດຕໍ່']||'').trim()===phone;
+    return sameInvoice || samePhone;
+  }) || null;
+}
+function confirmDuplicateIfAny_(payload, excludeId){
+  const dup = findDuplicateRecord_(payload, excludeId);
+  if(!dup) return true;
+  const reason = String(payload.invoice||'').trim() && String(dup['ເລກທີ Invoice']||'').trim()===String(payload.invoice||'').trim() ? 'ເລກທີ Invoice' : 'ເບີໂທຕິດຕໍ່';
+  return confirm('⚠️ ພົບຂໍ້ມູນຊ້ຳ ('+reason+') ກັບລູກຄ້າ "'+(dup['ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ']||'-')+'" ('+String(dup['ວັນທີ']||'').slice(0,10)+'). ຕ້ອງການບັນທຶກຕໍ່ແທ້ບໍ?');
+}
+
 function collectFormPayload(){
   const root = document.querySelector('#modalOverlay.show') || document;
   const v = s => (root.querySelector(s) || {}).value || '';
@@ -921,6 +967,7 @@ function collectFormPayload(){
 function saveHomeForm(){
   const payload = collectFormPayload();
   if(!payload.customerName){ showToast(ic('warn')+' ກະລຸນາປ້ອນຊື່ລູກຄ້າ'); return; }
+  if(!confirmDuplicateIfAny_(payload, null)) return;
   const btn = $('#btnSaveHome'); btn.textContent='ກຳລັງບັນທຶກ...'; btn.disabled=true;
   google.script.run.withSuccessHandler(res=>{
     btn.disabled=false; btn.innerHTML = ic('save')+' ບັນທຶກລູກຄ້າ';
@@ -949,9 +996,10 @@ function recordItemHtml(r){
         🛍️ ${esc(r['ລູກຄ້າສົນໃຈຊື້ອັນໃດ']||'-')} · ${fmtNum(r['ລາຄາ'])} ${esc(r['ສະກຸນເງິນ']||'')}<br>
         📅 ${esc(String(r['ວັນທີ']||'').slice(0,10))}
       </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
         ${avatarHtml(staffName, photoForStaffName(staffName), 30)}
         <span style="font-size:12.5px;font-weight:600;color:var(--text);">${esc(staffName||'-')}</span>
+        ${deptForStaffName(staffName) ? `<span class="badge" style="margin:0;">🏢 ${esc(deptForStaffName(staffName))}</span>` : ''}
       </div>
     </div>
     ${canEdit ? `
@@ -968,24 +1016,69 @@ function viewRecords(){
   return `
   <div class="card">
     <div class="section-title">${ic('records')} ລາຍການລູກຄ້າ${CURRENT_USER.role==='admin'?'ທັງໝົດ':'ຂອງຂ້ອຍ'}</div>
-    <div class="section-sub">ທັງໝົດ ${RECORDS.length} ລາຍການ</div>
+    <div class="section-sub" id="recordsCountLabel">ທັງໝົດ ${RECORDS.length} ລາຍການ</div>
     <div class="searchbar"><input type="text" id="searchInput" placeholder="${ic('search')} ຄົ້ນຫາຊື່ລູກຄ້າ, ເບີໂທ, ສິນຄ້າ..." value="${esc(recordFilterQuery)}"></div>
+    <div class="custom-range-row" style="margin-bottom:12px;">
+      <select id="recordsMonthSelect">
+        <option value="">📅 ທັງໝົດ / ເລືອກເດືອນ</option>
+        ${getAvailableMonths().map(m=>`<option value="${m}" ${recordsMonthFilter===m?'selected':''}>${m}</option>`).join('')}
+      </select>
+      <input type="date" id="recordsFrom" value="${esc(recordsCustomFrom)}">
+      <span class="to-label">ຫາ</span>
+      <input type="date" id="recordsTo" value="${esc(recordsCustomTo)}">
+      ${CURRENT_USER.role==='admin' ? `<select id="recordsDeptSelect">
+        <option value="">🏢 ທຸກພະແນກ</option>
+        ${(CONFIG.department||[]).map(d=>`<option value="${esc(d)}" ${recordsDeptFilter===d?'selected':''}>${esc(d)}</option>`).join('')}
+      </select>` : ''}
+      <button class="btn-refresh" id="btnApplyRecordsRange">${ic('ok')} ນຳໃຊ້</button>
+      <button class="btn-refresh" id="btnClearRecordsRange">${ic('close')} ລ້າງຕົວກອງ</button>
+    </div>
     <div id="recordListArea">${renderRecordList()}</div>
   </div>`;
 }
 
-function renderRecordList(){
-  const q = recordFilterQuery.toLowerCase().trim();
+function getFilteredRecordsList_(){
   let list = RECORDS;
+  if(recordsMonthFilter){
+    list = list.filter(r=> monthKeyOf_(r['ວັນທີ']) === recordsMonthFilter);
+  }
+  if(recordsCustomFrom) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) >= recordsCustomFrom);
+  if(recordsCustomTo) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) <= recordsCustomTo);
+  if(recordsDeptFilter){
+    list = list.filter(r=>{
+      const staffName = r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)'];
+      return deptForStaffName(staffName) === recordsDeptFilter;
+    });
+  }
+  const q = recordFilterQuery.toLowerCase().trim();
   if(q){
-    list = RECORDS.filter(r =>
+    list = list.filter(r =>
       String(r['ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ']||'').toLowerCase().includes(q) ||
       String(r['ເບີໂທຕິດຕໍ່']||'').toLowerCase().includes(q) ||
       String(r['ລູກຄ້າສົນໃຈຊື້ອັນໃດ']||'').toLowerCase().includes(q)
     );
   }
-  if(!list.length) return emptyHtml('ບໍ່ພົບຂໍ້ມູນ');
-  return list.map(recordItemHtml).join('');
+  return list;
+}
+
+function renderRecordList(){
+  const list = getFilteredRecordsList_();
+  const countLabel = $('#recordsCountLabel');
+  if(countLabel) countLabel.textContent = `ສະແດງ ${list.length} / ${RECORDS.length} ລາຍການ`;
+  if(!list.length){ recordsPage = 1; return emptyHtml('ບໍ່ພົບຂໍ້ມູນ'); }
+  const totalPages = Math.max(1, Math.ceil(list.length / RECORDS_PAGE_SIZE));
+  if(recordsPage > totalPages) recordsPage = totalPages;
+  if(recordsPage < 1) recordsPage = 1;
+  const startIdx = (recordsPage-1) * RECORDS_PAGE_SIZE;
+  const pageItems = list.slice(startIdx, startIdx + RECORDS_PAGE_SIZE);
+  const itemsHtml = pageItems.map(recordItemHtml).join('');
+  const paginationHtml = totalPages>1 ? `
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;">
+      <button class="btn-refresh" data-page-action="prev" data-total-pages="${totalPages}" ${recordsPage<=1?'disabled':''}>← ກ່ອນໜ້າ</button>
+      <span style="font-size:13px;font-weight:700;color:var(--muted);">ໜ້າ ${recordsPage} / ${totalPages}</span>
+      <button class="btn-refresh" data-page-action="next" data-total-pages="${totalPages}" ${recordsPage>=totalPages?'disabled':''}>ຕໍ່ໄປ →</button>
+    </div>` : '';
+  return itemsHtml + paginationHtml;
 }
 
 /*** ================= MODAL (Add/Edit record) ================= ***/
@@ -1005,6 +1098,7 @@ function openRecordModal(id){
   $('#btnSaveModal').addEventListener('click', ()=>{
     const payload = collectFormPayload();
     if(!payload.customerName){ showToast(ic('warn')+' ກະລຸນາປ້ອນຊື່ລູກຄ້າ'); return; }
+    if(!confirmDuplicateIfAny_(payload, editingId)) return;
     const btn = $('#btnSaveModal'); btn.textContent='ກຳລັງບັນທຶກ...'; btn.disabled=true;
     if(editingId){
       google.script.run.withSuccessHandler(res=>{
@@ -1284,9 +1378,17 @@ function viewReport(){
     <input type="text" id="reportSearch" placeholder="${ic('search')} ຄົ້ນຫາໃນຕາຕະລາງ (ຊື່, ເບີໂທ, ສິນຄ້າ...)" value="${esc(reportFilterQuery)}"
       style="margin-bottom:12px;width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:14px;font-size:14px;background:#faf9ff;">
     <div class="custom-range-row" style="margin-bottom:12px;">
+      <select id="reportMonthSelect">
+        <option value="">📅 ທັງໝົດ / ເລືອກເດືອນ</option>
+        ${getAvailableMonths().map(m=>`<option value="${m}" ${reportMonthFilter===m?'selected':''}>${m}</option>`).join('')}
+      </select>
       <input type="date" id="reportFrom" value="${esc(reportCustomFrom)}">
       <span class="to-label">ຫາ</span>
       <input type="date" id="reportTo" value="${esc(reportCustomTo)}">
+      ${CURRENT_USER.role==='admin' ? `<select id="reportDeptSelect">
+        <option value="">🏢 ທຸກພະແນກ</option>
+        ${(CONFIG.department||[]).map(d=>`<option value="${esc(d)}" ${reportDeptFilter===d?'selected':''}>${esc(d)}</option>`).join('')}
+      </select>` : ''}
       <button class="btn-refresh" id="btnApplyReportRange">${ic('ok')} ນຳໃຊ້</button>
       <button class="btn-refresh" id="btnClearReportRange">${ic('close')} ລ້າງ</button>
     </div>
@@ -1294,12 +1396,24 @@ function viewReport(){
   </div>`;
 }
 
-function renderReportTable(){
+function getFilteredReportList_(){
   let list = RECORDS;
+  if(reportMonthFilter) list = list.filter(r=> monthKeyOf_(r['ວັນທີ']) === reportMonthFilter);
   if(reportCustomFrom) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) >= reportCustomFrom);
   if(reportCustomTo) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) <= reportCustomTo);
+  if(reportDeptFilter){
+    list = list.filter(r=>{
+      const staffName = r['ຊື່ພະນັກງານຮັບລູກຄ້າ']||r['ຜູ້ບັນທຶກ(Username)'];
+      return deptForStaffName(staffName) === reportDeptFilter;
+    });
+  }
   const q = reportFilterQuery.toLowerCase().trim();
   if(q){ list = list.filter(r => REPORT_COLS.some(c => String(r[c.key]||'').toLowerCase().includes(q))); }
+  return list;
+}
+
+function renderReportTable(){
+  const list = getFilteredReportList_();
   const countLine = `<div class="section-sub" style="margin:0 0 10px;">ສະແດງ ${list.length} / ${RECORDS.length} ລາຍການ</div>`;
   if(!list.length) return countLine + emptyHtml('ບໍ່ພົບຂໍ້ມູນ');
   const thead = `<thead><tr>${REPORT_COLS.map(c=>`<th>${esc(c.label)}</th>`).join('')}</tr></thead>`;
@@ -1314,11 +1428,7 @@ function formatReportCell(key, val){
 }
 
 function exportCSV(){
-  let list = RECORDS;
-  if(reportCustomFrom) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) >= reportCustomFrom);
-  if(reportCustomTo) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) <= reportCustomTo);
-  const q = reportFilterQuery.toLowerCase().trim();
-  if(q){ list = list.filter(r => REPORT_COLS.some(c => String(r[c.key]||'').toLowerCase().includes(q))); }
+  const list = getFilteredReportList_();
   const rows = [REPORT_COLS.map(c=>c.label)];
   list.forEach(r=> rows.push(REPORT_COLS.map(c=> r[c.key]!=null ? String(r[c.key]).replace(/"/g,'""') : '')));
   const csv = rows.map(row=> row.map(v=>`"${v}"`).join(',')).join('\n');
@@ -1766,7 +1876,29 @@ function viewProfile(){
 function afterRender(view){
   if(view==='home'){ $('#btnSaveHome').addEventListener('click', saveHomeForm); bindProductCascade(); }
   if(view==='records'){
-    $('#searchInput').addEventListener('input', e=>{ recordFilterQuery = e.target.value; $('#recordListArea').innerHTML = renderRecordList(); });
+    $('#searchInput').addEventListener('input', e=>{ recordFilterQuery = e.target.value; recordsPage = 1; $('#recordListArea').innerHTML = renderRecordList(); });
+    $('#recordsMonthSelect').addEventListener('change', e=>{
+      recordsMonthFilter = e.target.value;
+      recordsCustomFrom=''; recordsCustomTo=''; recordsPage = 1;
+      renderView('records');
+    });
+    $('#btnApplyRecordsRange').addEventListener('click', ()=>{
+      recordsCustomFrom = $('#recordsFrom').value;
+      recordsCustomTo = $('#recordsTo').value;
+      if(recordsCustomFrom && recordsCustomTo && recordsCustomFrom > recordsCustomTo){
+        showToast(ic('warn')+' ວັນທີ "ຈາກ" ຕ້ອງບໍ່ຢູ່ຫຼັງວັນທີ "ຫາ"'); return;
+      }
+      recordsMonthFilter = ''; recordsPage = 1;
+      $('#recordListArea').innerHTML = renderRecordList();
+    });
+    $('#btnClearRecordsRange').addEventListener('click', ()=>{
+      recordsMonthFilter=''; recordsCustomFrom=''; recordsCustomTo=''; recordsDeptFilter=''; recordsPage = 1;
+      renderView('records');
+    });
+    const deptSel = $('#recordsDeptSelect');
+    if(deptSel){
+      deptSel.addEventListener('change', e=>{ recordsDeptFilter = e.target.value; recordsPage = 1; $('#recordListArea').innerHTML = renderRecordList(); });
+    }
   }
   if(view==='dashboard'){
     const renderChartsWhenReady = () => requestAnimationFrame(()=> requestAnimationFrame(drawCharts));
@@ -1801,6 +1933,11 @@ function afterRender(view){
   }
   if(view==='report'){
     $('#reportSearch').addEventListener('input', e=>{ reportFilterQuery = e.target.value; $('#reportTableArea').innerHTML = renderReportTable(); });
+    $('#reportMonthSelect').addEventListener('change', e=>{
+      reportMonthFilter = e.target.value;
+      reportCustomFrom=''; reportCustomTo='';
+      renderView('report');
+    });
     const btnApplyR = $('#btnApplyReportRange');
     if(btnApplyR){
       btnApplyR.addEventListener('click', ()=>{
@@ -1809,15 +1946,20 @@ function afterRender(view){
         if(reportCustomFrom && reportCustomTo && reportCustomFrom > reportCustomTo){
           showToast(ic('warn')+' ວັນທີ "ຈາກ" ຕ້ອງບໍ່ຢູ່ຫຼັງວັນທີ "ຫາ"'); return;
         }
+        reportMonthFilter = '';
         $('#reportTableArea').innerHTML = renderReportTable();
       });
     }
     const btnClearR = $('#btnClearReportRange');
     if(btnClearR){
       btnClearR.addEventListener('click', ()=>{
-        reportCustomFrom=''; reportCustomTo='';
+        reportMonthFilter=''; reportCustomFrom=''; reportCustomTo=''; reportDeptFilter='';
         renderView('report');
       });
+    }
+    const reportDeptSel = $('#reportDeptSelect');
+    if(reportDeptSel){
+      reportDeptSel.addEventListener('change', e=>{ reportDeptFilter = e.target.value; $('#reportTableArea').innerHTML = renderReportTable(); });
     }
   }
   if(view==='settings'){
