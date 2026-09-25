@@ -545,6 +545,8 @@ let dashboardCustomFrom = '';
 let dashboardCustomTo = '';
 let configDirty = false;
 let DASH_STATS = {};
+let DASH_FILTERED_RECORDS = [];
+let revenueReportGroupBy = 'day'; // day | month | year
 let STAFF_LIST = [];
 let PHONE_COUNTS = {};
 function normPhoneClient_(s){ return String(s==null?'':s).replace(/[^0-9]/g,''); }
@@ -773,6 +775,67 @@ function computeMonthGrowth(records){
   if(prevCount>0) pct = Math.round(((curCount-prevCount)/prevCount)*100);
   else pct = curCount>0 ? 100 : 0;
   return { curYm, prevYm, curCount, prevCount, pct };
+}
+
+function periodKeyOf_(dateStr, groupBy){
+  const d = String(dateStr||'').slice(0,10);
+  if(!d) return '';
+  if(groupBy==='year') return d.slice(0,4);
+  if(groupBy==='month') return d.slice(0,7);
+  return d;
+}
+
+function computeClosedRevenueByPeriod_(records, groupBy){
+  const result = {};
+  records.forEach(r=>{
+    if(!CLOSED_STATUSES.includes(r['Status ຊື້ສິນຄ້າ'])) return;
+    const key = periodKeyOf_(r['ວັນທີ'], groupBy);
+    if(!key) return;
+    if(!result[key]) result[key] = { count:0, byCurrency:{} };
+    const price = Number(r['ລາຄາ'])||0;
+    const qty = Number(r['ຈຳນວນ'])||0;
+    const cur = r['ສະກຸນເງິນ']||'KIP';
+    result[key].count++;
+    result[key].byCurrency[cur] = (result[key].byCurrency[cur]||0) + price*(qty||1);
+  });
+  return Object.entries(result).sort((a,b)=> b[0].localeCompare(a[0]));
+}
+
+function revenueReportHtml(filteredRecords){
+  const groupLabels = { day:'ລາຍວັນ', month:'ລາຍເດືອນ', year:'ລາຍປີ' };
+  const entries = computeClosedRevenueByPeriod_(filteredRecords, revenueReportGroupBy);
+  const rows = entries.map(([period, data])=>{
+    const revStr = Object.entries(data.byCurrency).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
+    return `<tr><td>${esc(period)}</td><td>${data.count}</td><td>${revStr}</td></tr>`;
+  }).join('');
+  const grandTotal = {}; let grandCount = 0;
+  entries.forEach(([,data])=>{
+    grandCount += data.count;
+    Object.entries(data.byCurrency).forEach(([c,v])=>{ grandTotal[c]=(grandTotal[c]||0)+v; });
+  });
+  const grandStr = Object.entries(grandTotal).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
+  return `
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div class="section-title" style="font-size:14.5px;">💰 ລາຍງານມູນຄ່າ "ປິດການຂາຍ"</div>
+        <div class="section-sub" style="margin-bottom:0;">ອີງຕາມຕົວກອງ ປີ/ຊ່ວງເວລາ ທີ່ເລືອກຢູ່ເທິງໜ້ານີ້</div>
+      </div>
+      <div class="year-tabs">
+        <button class="year-tab ${revenueReportGroupBy==='day'?'active':''}" data-rgroup="day">ລາຍວັນ</button>
+        <button class="year-tab ${revenueReportGroupBy==='month'?'active':''}" data-rgroup="month">ລາຍເດືອນ</button>
+        <button class="year-tab ${revenueReportGroupBy==='year'?'active':''}" data-rgroup="year">ລາຍປີ</button>
+      </div>
+    </div>
+    <div class="chart-box" style="margin-top:14px;"><canvas id="chartRevenueReport"></canvas></div>
+    <div style="overflow-x:auto;border-radius:14px;border:1px solid var(--border);margin-top:14px;max-height:360px;overflow-y:auto;">
+      <table class="report-table">
+        <thead><tr><th>${groupLabels[revenueReportGroupBy]}</th><th>ຈຳນວນລາຍການ</th><th>ມູນຄ່າລວມ</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="3" style="text-align:center;color:var(--muted);">ຍັງບໍ່ມີຂໍ້ມູນ</td></tr>'}</tbody>
+        <tfoot><tr style="font-weight:800;"><td>🧮 ລວມທັງໝົດ</td><td>${grandCount}</td><td>${grandStr}</td></tr></tfoot>
+      </table>
+    </div>
+  </div>`;
 }
 
 /*** ================= INIT ================= ***/
@@ -1398,6 +1461,7 @@ function viewDashboard(){
   let filtered = filterRecordsByYear(RECORDS, dashboardYear);
   filtered = filterRecordsByPeriod(filtered, dashboardPeriod, dashboardCustomFrom, dashboardCustomTo);
   DASH_STATS = computeDashboardStats(filtered);
+  DASH_FILTERED_RECORDS = filtered;
   const total = DASH_STATS.total||0;
   const revStr = Object.entries(DASH_STATS.revenueByCurrency||{}).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
   const closedPct = pctOf(countClosed_(DASH_STATS.byStatus), total);
@@ -1492,6 +1556,7 @@ function viewDashboard(){
     <div class="section-sub">ອີງຕາມຈຳນວນລູກຄ້າ ${total} ຄົນ (${PERIOD_LABELS[dashboardPeriod]})</div>
     ${progressListHtml(DASH_STATS.byStatus, total)}
   </div>
+  ${revenueReportHtml(filtered)}
   ${CURRENT_USER.role==='admin' ? `<div class="card"><div class="section-title" style="font-size:14.5px;">ຈຳນວນລູກຄ້າຕໍ່ພະນັກງານ</div><div class="section-sub">ພະນັກງານທີ່ມີການເຄື່ອນໄຫວ ${Object.keys(DASH_STATS.byStaff||{}).length} ຄົນ · ${PERIOD_LABELS[dashboardPeriod]}</div>${staffProgressHtml(DASH_STATS.byStaff, total)}</div>` : ''}
   `;
 }
@@ -1550,6 +1615,28 @@ function drawCharts(){
     const last7 = dateEntries.slice(-7);
     CHART_INSTANCES['week'] = new Chart(weekEl,{ type:'line', data:{ labels: last7.map(e=>e[0].slice(8)), datasets:[{ data: last7.map(e=>e[1]), borderColor:BRAND.colorPrimaryLight, backgroundColor:'rgba(124,58,237,.12)', fill:true, tension:.4, pointRadius:2, borderWidth:2 }] },
       options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ grid:{display:false}, ticks:{font:{size:9}} }, y:{ display:false, beginAtZero:true } } } });
+  }
+  const revEl = document.getElementById('chartRevenueReport');
+  if(revEl){
+    destroyChart_('revenueReport');
+    const entries = computeClosedRevenueByPeriod_(DASH_FILTERED_RECORDS||[], revenueReportGroupBy).slice(0,30).reverse();
+    const currencies = (CONFIG.currency && CONFIG.currency.length) ? CONFIG.currency : ['KIP','THB','USD'];
+    CHART_INSTANCES['revenueReport'] = new Chart(revEl, {
+      type:'bar',
+      data:{
+        labels: entries.map(([period])=> period),
+        datasets: currencies.map((cur,i)=>({
+          label: cur,
+          data: entries.map(([,data])=> data.byCurrency[cur]||0),
+          backgroundColor: colorFor(i)
+        }))
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:true, position:'top', labels:{boxWidth:12,font:{size:11}}} },
+        scales:{ x:{ ticks:{font:{size:10}} }, y:{ beginAtZero:true, ticks:{precision:0} } }
+      }
+    });
   }
 }
 
@@ -2212,6 +2299,9 @@ function afterRender(view){
     $('#dashPeriodSelect').addEventListener('change', e=>{ dashboardPeriod = e.target.value; renderView('dashboard'); });
     $all('.year-tab').forEach(btn=>{
       btn.addEventListener('click', ()=>{ dashboardYear = btn.dataset.year; renderView('dashboard'); });
+    });
+    $all('[data-rgroup]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ revenueReportGroupBy = btn.dataset.rgroup; renderView('dashboard'); });
     });
     const btnApplyRange = $('#btnApplyCustomRange');
     if(btnApplyRange){
