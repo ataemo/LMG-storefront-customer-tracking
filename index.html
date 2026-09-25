@@ -1574,14 +1574,11 @@ const REPORT_COLS = [
 ];
 
 // ★ ໃໝ່: ສະຫຼຸບມູນຄ່າ+ຈຳນວນລູກຄ້າ ແຍກຕາມ Status ຫຼັກ (ໃຊ້ຮ່ວມກັບຕົວກອງຂອງໜ້າລາຍງານ)
-const REPORT_KEY_STATUSES = ['ປິດການຂາຍ','ສອບຖາມຂໍ້ມູນທົ່ວໄປ','ປະກອບເອກະສານສິນເຊື່ອ','ຈອງສິນຄ້າ'];
-
 function computeStatusValueSummary_(list){
   const summary = {};
-  REPORT_KEY_STATUSES.forEach(s=> summary[s] = { count:0, byCurrency:{} });
   list.forEach(r=>{
-    const st = r['Status ຊື້ສິນຄ້າ'];
-    if(!summary[st]) return;
+    const st = r['Status ຊື້ສິນຄ້າ'] || 'ບໍ່ລະບຸ';
+    if(!summary[st]) summary[st] = { count:0, byCurrency:{} };
     const price = Number(r['ລາຄາ'])||0;
     const qty = Number(r['ຈຳນວນ'])||0;
     const cur = r['ສະກຸນເງິນ']||'KIP';
@@ -1593,7 +1590,12 @@ function computeStatusValueSummary_(list){
 
 function statusValueSummaryHtml_(list){
   const summary = computeStatusValueSummary_(list);
-  const cards = REPORT_KEY_STATUSES.map(st=>{
+  // ລຽງລຳດັບຕາມ CONFIG.status ກ່ອນ, ແລ້ວຕາມດ້ວຍສະຖານະອື່ນທີ່ພົບ (ເຊັ່ນ "ບໍ່ລະບຸ")
+  const known = (CONFIG.status || []);
+  const allKeys = Object.keys(summary);
+  const ordered = known.filter(s=> summary[s]).concat(allKeys.filter(s=> known.indexOf(s)===-1));
+
+  const cards = ordered.map(st=>{
     const s = summary[st];
     const valueStr = Object.entries(s.byCurrency).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
     return `<div class="stat-card">
@@ -1602,8 +1604,21 @@ function statusValueSummaryHtml_(list){
       <div class="lbl">${s.count} ລາຍການ</div>
     </div>`;
   }).join('');
-  return `<div class="section-sub" style="margin:0 0 8px;font-weight:700;">💰 ມູນຄ່າລວມແຍກຕາມ Status (ຕາມຕົວກອງທີ່ເລືອກຢູ່)</div>
-  <div class="stat-grid" style="margin-bottom:18px;">${cards}</div>`;
+
+  const grandTotal = {};
+  list.forEach(r=>{
+    const price = Number(r['ລາຄາ'])||0, qty = Number(r['ຈຳນວນ'])||0, cur = r['ສະກຸນເງິນ']||'KIP';
+    grandTotal[cur] = (grandTotal[cur]||0) + price*(qty||1);
+  });
+  const grandStr = Object.entries(grandTotal).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
+  const totalCard = `<div class="stat-card accent">
+      <div class="lbl" style="margin-bottom:6px;font-weight:700;">🧮 ລວມທຸກສະຖານະ</div>
+      <div class="val" style="font-size:17px;line-height:1.4;">${grandStr}</div>
+      <div class="lbl">${list.length} ລາຍການ</div>
+    </div>`;
+
+  return `<div class="section-sub" style="margin:0 0 8px;font-weight:700;">💰 ມູນຄ່າລວມແຍກຕາມ Status (ຕາມຕົວກອງ ວັນທີ/ພະແນກ ທີ່ເລືອກຢູ່)</div>
+  <div class="stat-grid" style="margin-bottom:18px;">${totalCard}${cards}</div>`;
 }
 
 function renderReportBody(){
@@ -1640,6 +1655,7 @@ function viewReport(){
         ${(CONFIG.department||[]).map(d=>`<option value="${esc(d)}" ${reportDeptFilter===d?'selected':''}>${esc(d)}</option>`).join('')}
       </select>` : ''}
       <button class="btn-refresh" id="btnApplyReportRange">${ic('ok')} ນຳໃຊ້</button>
+      <button class="btn-refresh" id="btnReportToday">📅 ມື້ນີ້</button>
       <button class="btn-refresh" id="btnClearReportRange">${ic('close')} ລ້າງ</button>
     </div>
     <div id="reportBodyArea">${renderReportBody()}</div>
@@ -1686,7 +1702,11 @@ function exportCSV(){
   const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'lmg_ລາຍງານລູກຄ້າ_'+todayStr()+'.csv';
+  let rangeTag = todayStr();
+  if(reportCustomFrom || reportCustomTo) rangeTag = (reportCustomFrom||'...') + '_ຫາ_' + (reportCustomTo||'...');
+  else if(reportMonthFilter) rangeTag = reportMonthFilter;
+  else if(reportYearFilter) rangeTag = reportYearFilter;
+  a.href = url; a.download = 'lmg_ລາຍງານລູກຄ້າ_'+rangeTag+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast(ic('export')+' ດາວໂຫລດ CSV ສຳເລັດ ('+list.length+' ລາຍການ)');
@@ -2227,6 +2247,14 @@ function afterRender(view){
       reportCustomFrom=''; reportCustomTo='';
       renderView('report');
     });
+    const btnToday = $('#btnReportToday');
+    if(btnToday){
+      btnToday.addEventListener('click', ()=>{
+        const t = todayStr();
+        reportCustomFrom = t; reportCustomTo = t; reportMonthFilter=''; reportYearFilter='';
+        renderView('report');
+      });
+    }
     const btnApplyR = $('#btnApplyReportRange');
     if(btnApplyR){
       btnApplyR.addEventListener('click', ()=>{
