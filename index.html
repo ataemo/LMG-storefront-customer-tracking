@@ -537,6 +537,7 @@ let recordsPage = 1;
 const RECORDS_PAGE_SIZE = 20;
 let reportMonthFilter = '';
 let reportDeptFilter = '';
+let reportYearFilter = '';
 let brandingDraft = null;
 let dashboardPeriod = 'all';
 let dashboardYear = 'all';
@@ -1572,6 +1573,44 @@ const REPORT_COLS = [
   {key:'ພະນັກງານຂາຍ', label:'ພະນັກງານຂາຍ'}
 ];
 
+// ★ ໃໝ່: ສະຫຼຸບມູນຄ່າ+ຈຳນວນລູກຄ້າ ແຍກຕາມ Status ຫຼັກ (ໃຊ້ຮ່ວມກັບຕົວກອງຂອງໜ້າລາຍງານ)
+const REPORT_KEY_STATUSES = ['ປິດການຂາຍ','ສອບຖາມຂໍ້ມູນທົ່ວໄປ','ປະກອບເອກະສານສິນເຊື່ອ','ຈອງສິນຄ້າ'];
+
+function computeStatusValueSummary_(list){
+  const summary = {};
+  REPORT_KEY_STATUSES.forEach(s=> summary[s] = { count:0, byCurrency:{} });
+  list.forEach(r=>{
+    const st = r['Status ຊື້ສິນຄ້າ'];
+    if(!summary[st]) return;
+    const price = Number(r['ລາຄາ'])||0;
+    const qty = Number(r['ຈຳນວນ'])||0;
+    const cur = r['ສະກຸນເງິນ']||'KIP';
+    summary[st].count++;
+    summary[st].byCurrency[cur] = (summary[st].byCurrency[cur]||0) + price*(qty||1);
+  });
+  return summary;
+}
+
+function statusValueSummaryHtml_(list){
+  const summary = computeStatusValueSummary_(list);
+  const cards = REPORT_KEY_STATUSES.map(st=>{
+    const s = summary[st];
+    const valueStr = Object.entries(s.byCurrency).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
+    return `<div class="stat-card">
+      <div class="lbl" style="margin-bottom:6px;font-weight:700;">${esc(st)}</div>
+      <div class="val" style="font-size:17px;line-height:1.4;">${valueStr}</div>
+      <div class="lbl">${s.count} ລາຍການ</div>
+    </div>`;
+  }).join('');
+  return `<div class="section-sub" style="margin:0 0 8px;font-weight:700;">💰 ມູນຄ່າລວມແຍກຕາມ Status (ຕາມຕົວກອງທີ່ເລືອກຢູ່)</div>
+  <div class="stat-grid" style="margin-bottom:18px;">${cards}</div>`;
+}
+
+function renderReportBody(){
+  const list = getFilteredReportList_();
+  return statusValueSummaryHtml_(list) + renderReportTable();
+}
+
 function viewReport(){
   return `
   <div class="card" style="padding:14px;">
@@ -1585,6 +1624,10 @@ function viewReport(){
     <input type="text" id="reportSearch" placeholder="${ic('search')} ຄົ້ນຫາໃນຕາຕະລາງ (ຊື່, ເບີໂທ, ສິນຄ້າ...)" value="${esc(reportFilterQuery)}"
       style="margin-bottom:12px;width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:14px;font-size:14px;background:#faf9ff;">
     <div class="custom-range-row" style="margin-bottom:12px;">
+      <select id="reportYearSelect">
+        <option value="">🗂️ ທຸກປີ</option>
+        ${getAvailableYears().map(y=>`<option value="${y}" ${reportYearFilter===y?'selected':''}>${y}</option>`).join('')}
+      </select>
       <select id="reportMonthSelect">
         <option value="">📅 ທັງໝົດ / ເລືອກເດືອນ</option>
         ${getAvailableMonths().map(m=>`<option value="${m}" ${reportMonthFilter===m?'selected':''}>${m}</option>`).join('')}
@@ -1599,12 +1642,13 @@ function viewReport(){
       <button class="btn-refresh" id="btnApplyReportRange">${ic('ok')} ນຳໃຊ້</button>
       <button class="btn-refresh" id="btnClearReportRange">${ic('close')} ລ້າງ</button>
     </div>
-    <div id="reportTableArea">${renderReportTable()}</div>
+    <div id="reportBodyArea">${renderReportBody()}</div>
   </div>`;
 }
 
 function getFilteredReportList_(){
   let list = RECORDS;
+  if(reportYearFilter) list = list.filter(r=> String(r['ວັນທີ']||'').slice(0,4) === reportYearFilter);
   if(reportMonthFilter) list = list.filter(r=> monthKeyOf_(r['ວັນທີ']) === reportMonthFilter);
   if(reportCustomFrom) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) >= reportCustomFrom);
   if(reportCustomTo) list = list.filter(r=> String(r['ວັນທີ']).slice(0,10) <= reportCustomTo);
@@ -2173,7 +2217,11 @@ function afterRender(view){
     }
   }
   if(view==='report'){
-    $('#reportSearch').addEventListener('input', e=>{ reportFilterQuery = e.target.value; $('#reportTableArea').innerHTML = renderReportTable(); });
+    $('#reportSearch').addEventListener('input', e=>{ reportFilterQuery = e.target.value; $('#reportBodyArea').innerHTML = renderReportBody(); });
+    $('#reportYearSelect').addEventListener('change', e=>{
+      reportYearFilter = e.target.value;
+      renderView('report');
+    });
     $('#reportMonthSelect').addEventListener('change', e=>{
       reportMonthFilter = e.target.value;
       reportCustomFrom=''; reportCustomTo='';
@@ -2188,19 +2236,19 @@ function afterRender(view){
           showToast(ic('warn')+' ວັນທີ "ຈາກ" ຕ້ອງບໍ່ຢູ່ຫຼັງວັນທີ "ຫາ"'); return;
         }
         reportMonthFilter = '';
-        $('#reportTableArea').innerHTML = renderReportTable();
+        $('#reportBodyArea').innerHTML = renderReportBody();
       });
     }
     const btnClearR = $('#btnClearReportRange');
     if(btnClearR){
       btnClearR.addEventListener('click', ()=>{
-        reportMonthFilter=''; reportCustomFrom=''; reportCustomTo=''; reportDeptFilter='';
+        reportYearFilter=''; reportMonthFilter=''; reportCustomFrom=''; reportCustomTo=''; reportDeptFilter='';
         renderView('report');
       });
     }
     const reportDeptSel = $('#reportDeptSelect');
     if(reportDeptSel){
-      reportDeptSel.addEventListener('change', e=>{ reportDeptFilter = e.target.value; $('#reportTableArea').innerHTML = renderReportTable(); });
+      reportDeptSel.addEventListener('change', e=>{ reportDeptFilter = e.target.value; $('#reportBodyArea').innerHTML = renderReportBody(); });
     }
   }
   if(view==='settings'){
