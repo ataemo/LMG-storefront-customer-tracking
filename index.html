@@ -393,6 +393,7 @@ a{text-decoration:none;color:inherit;}
     <div class="drawer-item" data-view="settings" id="navSettings" style="display:none;"><span class="ic" data-icon="settings">⚙️</span> ຕັ້ງຄ່າຕົວເລືອກ</div>
     <div class="drawer-item" data-view="branding" id="navBranding" style="display:none;"><span class="ic" data-icon="branding">🎨</span> ຕົກແຕ່ງແອັບ</div>
     <div class="drawer-item" data-view="producttree" id="navProductTree" style="display:none;">📦 ຈັດການສິນຄ້າ</div>
+    <div class="drawer-item" data-view="exchangerate" id="navExchangeRate" style="display:none;">💱 ອັດຕາແລກປ່ຽນເງິນ</div>
     <div class="drawer-item" data-view="activitylog" id="navActivityLog" style="display:none;">📜 ປະຫວັດການເຄື່ອນໄຫວ</div>
     <div class="drawer-item" data-view="profile" id="navProfile" style="display:none;"><span class="ic" data-icon="profile">🔑</span> ປ່ຽນລະຫັດຜ່ານ</div>
   </div>
@@ -547,6 +548,8 @@ let configDirty = false;
 let DASH_STATS = {};
 let DASH_FILTERED_RECORDS = [];
 let revenueReportGroupBy = 'day'; // day | month | year
+let EXCHANGE_RATES = []; // [{date, THB, USD, updatedBy, updatedAt}, ...] ລຽງໃໝ່ສຸດກ່ອນ
+let exchangeRateEditDate = '';
 let STAFF_LIST = [];
 let PHONE_COUNTS = {};
 function normPhoneClient_(s){ return String(s==null?'':s).replace(/[^0-9]/g,''); }
@@ -585,6 +588,21 @@ document.addEventListener('click', (e)=>{
     if(pageBtn.dataset.pageAction==='prev') recordsPage = Math.max(1, recordsPage-1);
     else if(pageBtn.dataset.pageAction==='next') recordsPage = Math.min(totalPages, recordsPage+1);
     $('#recordListArea').innerHTML = renderRecordList();
+    return;
+  }
+  const erBtn = e.target.closest('[data-er-action]');
+  if(erBtn){
+    const date = erBtn.dataset.date;
+    if(erBtn.dataset.erAction === 'edit'){
+      exchangeRateEditDate = date;
+      renderView('exchangerate');
+    } else if(erBtn.dataset.erAction === 'delete'){
+      if(!confirm('ລຶບອັດຕາແລກປ່ຽນຂອງວັນທີ '+date+' ແທ້ບໍ?')) return;
+      google.script.run.withSuccessHandler(res=>{
+        if(res.success){ showToast('🗑️ ລຶບແລ້ວ'); reloadExchangeRates_(()=> renderView('exchangerate')); }
+        else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
+      }).withFailureHandler(onApiFail_).deleteExchangeRate(date, CURRENT_USER.role);
+    }
     return;
   }
 });
@@ -777,6 +795,36 @@ function computeMonthGrowth(records){
   return { curYm, prevYm, curCount, prevCount, pct };
 }
 
+// ຫາອັດຕາແລກປ່ຽນທີ່ໃຊ້ໄດ້ສຳລັບວັນທີໃດໜຶ່ງ: ໃຊ້ອັນລ່າສຸດ "ມື້ນັ້ນ ຫຼື ກ່ອນໜ້ານັ້ນ" (carry-forward)
+function getRateForDate_(dateStr, currency){
+  const d = String(dateStr||'').slice(0,10);
+  if(!d || !EXCHANGE_RATES.length) return null;
+  const hit = EXCHANGE_RATES.find(r => r.date <= d && Number(r[currency]) > 0);
+  return hit ? Number(hit[currency]) : null;
+}
+
+// ແປງ {KIP:.., THB:.., USD:..} ໃຫ້ເປັນ KIP ທັງໝົດ; ຄືນ {totalKip, missing:[ສະກຸນທີ່ຍັງບໍ່ມີອັດຕາ]}
+function convertToKip_(byCurrency, dateStr){
+  let totalKip = 0;
+  const missing = [];
+  Object.entries(byCurrency||{}).forEach(([cur, amt])=>{
+    if(cur === 'KIP'){ totalKip += amt; return; }
+    const rate = getRateForDate_(dateStr, cur);
+    if(rate){ totalKip += amt * rate; }
+    else if(amt) missing.push(cur);
+  });
+  return { totalKip, missing: Array.from(new Set(missing)) };
+}
+
+function latestRateLabel_(){
+  if(!EXCHANGE_RATES.length) return 'ຍັງບໍ່ໄດ້ຕັ້ງອັດຕາແລກປ່ຽນ';
+  const r = EXCHANGE_RATES[0];
+  const parts = [];
+  if(r.THB) parts.push('1 THB = '+fmtNum(r.THB)+' KIP');
+  if(r.USD) parts.push('1 USD = '+fmtNum(r.USD)+' KIP');
+  return 'ອັດຕາລ່າສຸດ ('+r.date+'): '+parts.join(' · ');
+}
+
 function periodKeyOf_(dateStr, groupBy){
   const d = String(dateStr||'').slice(0,10);
   if(!d) return '';
@@ -789,14 +837,16 @@ function computeClosedRevenueByPeriod_(records, groupBy){
   const result = {};
   records.forEach(r=>{
     if(!CLOSED_STATUSES.includes(r['Status ຊື້ສິນຄ້າ'])) return;
-    const key = periodKeyOf_(r['ວັນທີ'], groupBy);
+    const rDate = String(r['ວັນທີ']||'').slice(0,10);
+    const key = periodKeyOf_(rDate, groupBy);
     if(!key) return;
-    if(!result[key]) result[key] = { count:0, byCurrency:{} };
+    if(!result[key]) result[key] = { count:0, byCurrency:{}, lastDate: rDate };
     const price = Number(r['ລາຄາ'])||0;
     const qty = Number(r['ຈຳນວນ'])||0;
     const cur = r['ສະກຸນເງິນ']||'KIP';
     result[key].count++;
     result[key].byCurrency[cur] = (result[key].byCurrency[cur]||0) + price*(qty||1);
+    if(rDate > result[key].lastDate) result[key].lastDate = rDate;
   });
   return Object.entries(result).sort((a,b)=> b[0].localeCompare(a[0]));
 }
@@ -804,22 +854,32 @@ function computeClosedRevenueByPeriod_(records, groupBy){
 function revenueReportHtml(filteredRecords){
   const groupLabels = { day:'ລາຍວັນ', month:'ລາຍເດືອນ', year:'ລາຍປີ' };
   const entries = computeClosedRevenueByPeriod_(filteredRecords, revenueReportGroupBy);
+  let anyMissing = false;
   const rows = entries.map(([period, data])=>{
     const revStr = Object.entries(data.byCurrency).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
-    return `<tr><td>${esc(period)}</td><td>${data.count}</td><td>${revStr}</td></tr>`;
+    const conv = convertToKip_(data.byCurrency, data.lastDate);
+    if(conv.missing.length) anyMissing = true;
+    const kipStr = conv.missing.length
+      ? `${fmtNum(conv.totalKip)} KIP <span style="color:var(--danger);font-weight:700;" title="ບໍ່ມີອັດຕາແລກປ່ຽນ ${conv.missing.join(', ')} ຂອງວັນທີນີ້">⚠️</span>`
+      : `${fmtNum(conv.totalKip)} KIP`;
+    return `<tr><td>${esc(period)}</td><td>${data.count}</td><td>${revStr}</td><td>${kipStr}</td></tr>`;
   }).join('');
-  const grandTotal = {}; let grandCount = 0;
+  const grandTotal = {}; let grandCount = 0; let latestDate = '';
   entries.forEach(([,data])=>{
     grandCount += data.count;
     Object.entries(data.byCurrency).forEach(([c,v])=>{ grandTotal[c]=(grandTotal[c]||0)+v; });
+    if(data.lastDate > latestDate) latestDate = data.lastDate;
   });
   const grandStr = Object.entries(grandTotal).map(([c,v])=>`${fmtNum(v)} ${c}`).join('  +  ') || '0';
+  const grandConv = convertToKip_(grandTotal, latestDate || todayStr());
+  if(grandConv.missing.length) anyMissing = true;
+  const grandKipStr = grandConv.missing.length ? `${fmtNum(grandConv.totalKip)} KIP ⚠️` : `${fmtNum(grandConv.totalKip)} KIP`;
   return `
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <div>
         <div class="section-title" style="font-size:14.5px;">💰 ລາຍງານມູນຄ່າ "ປິດການຂາຍ"</div>
-        <div class="section-sub" style="margin-bottom:0;">ອີງຕາມຕົວກອງ ປີ/ຊ່ວງເວລາ ທີ່ເລືອກຢູ່ເທິງໜ້ານີ້</div>
+        <div class="section-sub" style="margin-bottom:0;">ອີງຕາມຕົວກອງ ປີ/ຊ່ວງເວລາ ທີ່ເລືອກຢູ່ເທິງໜ້ານີ້ · ${esc(latestRateLabel_())}</div>
       </div>
       <div class="year-tabs">
         <button class="year-tab ${revenueReportGroupBy==='day'?'active':''}" data-rgroup="day">ລາຍວັນ</button>
@@ -830,11 +890,12 @@ function revenueReportHtml(filteredRecords){
     <div class="chart-box" style="margin-top:14px;"><canvas id="chartRevenueReport"></canvas></div>
     <div style="overflow-x:auto;border-radius:14px;border:1px solid var(--border);margin-top:14px;max-height:360px;overflow-y:auto;">
       <table class="report-table">
-        <thead><tr><th>${groupLabels[revenueReportGroupBy]}</th><th>ຈຳນວນລາຍການ</th><th>ມູນຄ່າລວມ</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="3" style="text-align:center;color:var(--muted);">ຍັງບໍ່ມີຂໍ້ມູນ</td></tr>'}</tbody>
-        <tfoot><tr style="font-weight:800;"><td>🧮 ລວມທັງໝົດ</td><td>${grandCount}</td><td>${grandStr}</td></tr></tfoot>
+        <thead><tr><th>${groupLabels[revenueReportGroupBy]}</th><th>ຈຳນວນລາຍການ</th><th>ມູນຄ່າລວມ</th><th>≈ ມູນຄ່າເປັນ KIP</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">ຍັງບໍ່ມີຂໍ້ມູນ</td></tr>'}</tbody>
+        <tfoot><tr style="font-weight:800;"><td>🧮 ລວມທັງໝົດ</td><td>${grandCount}</td><td>${grandStr}</td><td>${grandKipStr}</td></tr></tfoot>
       </table>
     </div>
+    ${anyMissing ? `<div class="section-sub" style="margin:10px 0 0;color:var(--danger);">⚠️ ບາງລາຍການຍັງບໍ່ມີອັດຕາແລກປ່ຽນຂອງວັນທີນັ້ນ ຈຶ່ງບໍ່ໄດ້ຄິດໄລ່ເປັນ KIP — ໄປຕັ້ງອັດຕາໄດ້ທີ່ໜ້າ "ອັດຕາແລກປ່ຽນເງິນ"</div>` : ''}
   </div>`;
 }
 
@@ -884,6 +945,7 @@ function doLogin(){
 function bootApp(){
   google.script.run.withSuccessHandler(data=>{
     CONFIG = data.config; RECORDS = data.records; DASHBOARD = data.dashboard;
+    EXCHANGE_RATES = data.exchangeRates || [];
     rebuildPhoneCounts_();   // ← ເພີ່ມແຖວນີ້
     applyBranding(CONFIG.branding);
     $('#loadingScreen').style.display='none';
@@ -899,6 +961,7 @@ function bootApp(){
       $('#navSettings').style.display='flex';
       $('#navBranding').style.display='flex';
       $('#navProductTree').style.display='flex';
+      $('#navExchangeRate').style.display='flex';
       $('#navActivityLog').style.display='flex';
       $('#navProfile').style.display='flex';
     }
@@ -915,6 +978,7 @@ function bootApp(){
 function refreshAll(cb){
   google.script.run.withSuccessHandler(data=>{
     CONFIG = data.config; RECORDS = data.records; DASHBOARD = data.dashboard;
+    EXCHANGE_RATES = data.exchangeRates || [];
     rebuildPhoneCounts_();   // ← ເພີ່ມແຖວນີ້
     applyBranding(CONFIG.branding);
     refreshStaffList(()=>{ if(cb) cb(); });
@@ -969,6 +1033,7 @@ function renderView(view){
   else if(view==='settings') wrap.innerHTML = viewSettings();
   else if(view==='branding') wrap.innerHTML = viewBranding();
   else if(view==='producttree') wrap.innerHTML = viewProductTree();
+  else if(view==='exchangerate') wrap.innerHTML = viewExchangeRate();
   else if(view==='activitylog') wrap.innerHTML = viewActivityLog();
   else if(view==='profile') wrap.innerHTML = viewProfile();
   $all('[data-icon]').forEach(el=>{ el.textContent = ic(el.dataset.icon); });
@@ -2252,6 +2317,56 @@ function loadActivityLog(){
   }).getActivityLog(200);
 }
 
+/*** ================= ADMIN: ອັດຕາແລກປ່ຽນເງິນ (Exchange Rate) ================= ***/
+function viewExchangeRate(){
+  const editDate = exchangeRateEditDate || todayStr();
+  const editRate = EXCHANGE_RATES.find(r=> r.date === editDate);
+  return `
+  <div class="section-title" style="margin-bottom:4px;">💱 ອັດຕາແລກປ່ຽນເງິນ (THB / USD → KIP)</div>
+  <div class="section-sub">ຕັ້ງອັດຕາແລກປ່ຽນປະຈຳວັນ ເພື່ອໃຫ້ລະບົບຄິດໄລ່ມູນຄ່າຍອດຂາຍທັງໝົດເປັນ KIP ອັດຕະໂນມັດ (ຖ້າວັນທີໃດຍັງບໍ່ໄດ້ຕັ້ງ ຈະໃຊ້ອັດຕາລ່າສຸດກ່ອນໜ້ານັ້ນແທນ)</div>
+
+  <div class="card">
+    <div class="section-title" style="font-size:14.5px;">${editRate ? '✏️ ແກ້ໄຂອັດຕາ' : '➕ ຕັ້ງອັດຕາໃໝ່'}</div>
+    <div class="form-grid" style="margin-top:12px;">
+      <div class="field"><label>ວັນທີ</label><input type="date" id="er_date" value="${esc(editDate)}"></div>
+      <div class="field"><label>1 THB ເທົ່າກັບ (KIP)</label><input type="number" id="er_thb" min="0" step="0.01" placeholder="ເຊັ່ນ: 650" value="${editRate && editRate.THB ? editRate.THB : ''}"></div>
+      <div class="field"><label>1 USD ເທົ່າກັບ (KIP)</label><input type="number" id="er_usd" min="0" step="0.01" placeholder="ເຊັ່ນ: 20800" value="${editRate && editRate.USD ? editRate.USD : ''}"></div>
+    </div>
+    <button class="btn btn-primary" id="btnSaveExchangeRate">${ic('save')} ${editRate ? 'ອັບເດດອັດຕາແລກປ່ຽນ' : 'ບັນທຶກອັດຕາແລກປ່ຽນ'}</button>
+  </div>
+
+  <div class="card">
+    <div class="section-title" style="font-size:14.5px;">📜 ປະຫວັດອັດຕາແລກປ່ຽນ</div>
+    <div class="section-sub">${EXCHANGE_RATES.length} ວັນທີ ທີ່ຕັ້ງໄວ້ · ໃໝ່ສຸດຢູ່ເທິງ</div>
+    <div id="exchangeRateListArea">${exchangeRateListHtml_()}</div>
+  </div>`;
+}
+
+function exchangeRateListHtml_(){
+  if(!EXCHANGE_RATES.length) return emptyHtml('ຍັງບໍ່ໄດ້ຕັ້ງອັດຕາແລກປ່ຽນ');
+  return `<div style="overflow-x:auto;border-radius:14px;border:1px solid var(--border);"><table class="report-table">
+    <thead><tr><th>ວັນທີ</th><th>1 THB =</th><th>1 USD =</th><th>ອັບເດດໂດຍ</th><th>ອັບເດດເວລາ</th><th></th></tr></thead>
+    <tbody>${EXCHANGE_RATES.map(r=>`<tr>
+      <td>${esc(r.date)}</td>
+      <td>${r.THB ? fmtNum(r.THB)+' KIP' : '-'}</td>
+      <td>${r.USD ? fmtNum(r.USD)+' KIP' : '-'}</td>
+      <td>${esc(r.updatedBy||'-')}</td>
+      <td>${esc(r.updatedAt||'-')}</td>
+      <td style="white-space:nowrap;">
+        <button class="iconbtn-sm" data-er-action="edit" data-date="${esc(r.date)}">${ic('edit')}</button>
+        <button class="iconbtn-sm del" data-er-action="delete" data-date="${esc(r.date)}">${ic('delete')}</button>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function reloadExchangeRates_(cb){
+  google.script.run.withSuccessHandler(list=>{
+    EXCHANGE_RATES = list || [];
+    if(cb) cb();
+  }).withFailureHandler(err=>{ onApiFail_(err); if(cb) cb(); }).getExchangeRates();
+}
+
 /*** ================= PROFILE (change password) ================= ***/
 function viewProfile(){
   return `
@@ -2393,6 +2508,35 @@ function afterRender(view){
         }).updateProductTree(CONFIG.productTree, CURRENT_USER.role);
       });
     }
+  }
+  if(view==='exchangerate'){
+    const erDateInp = $('#er_date');
+    if(erDateInp){
+      erDateInp.addEventListener('change', ()=>{
+        const d = erDateInp.value;
+        const match = EXCHANGE_RATES.find(r=> r.date === d);
+        $('#er_thb').value = match && match.THB ? match.THB : '';
+        $('#er_usd').value = match && match.USD ? match.USD : '';
+      });
+    }
+    $('#btnSaveExchangeRate').addEventListener('click', ()=>{
+      const date = $('#er_date').value;
+      const thb = $('#er_thb').value;
+      const usd = $('#er_usd').value;
+      if(!date){ showToast(ic('warn')+' ກະລຸນາເລືອກວັນທີ'); return; }
+      if(!Number(thb) && !Number(usd)){ showToast(ic('warn')+' ກະລຸນາໃສ່ອັດຕາແລກປ່ຽນຢ່າງໜ້ອຍ 1 ສະກຸນເງິນ'); return; }
+      const btn = $('#btnSaveExchangeRate');
+      btn.disabled = true; btn.textContent = 'ກຳລັງບັນທຶກ...';
+      google.script.run.withSuccessHandler(res=>{
+        btn.disabled = false; btn.innerHTML = ic('save')+' ບັນທຶກອັດຕາແລກປ່ຽນ';
+        if(res.success){
+          showToast(ic('ok')+' ບັນທຶກອັດຕາແລກປ່ຽນສຳເລັດ');
+          exchangeRateEditDate = '';
+          reloadExchangeRates_(()=> renderView('exchangerate'));
+        } else showToast(ic('err')+' '+(res.message||'ບໍ່ສຳເລັດ'));
+      }).withFailureHandler(err=>{ btn.disabled=false; btn.innerHTML=ic('save')+' ບັນທຶກອັດຕາແລກປ່ຽນ'; onApiFail_(err); })
+      .upsertExchangeRate({ date: date, THB: Number(thb)||0, USD: Number(usd)||0 }, CURRENT_USER.role);
+    });
   }
   if(view==='activitylog'){
     loadActivityLog();
